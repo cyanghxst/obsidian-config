@@ -6,7 +6,7 @@
   "autoPairBrackets": true,
   "autoPairMarkdown": true,
   "spellcheck": false,
-  "foldIndent": false,
+  "foldIndent": true,
   "showInlineTitle": false,
   "newFileLocation": "current",
   "strictLineBreaks": false,
