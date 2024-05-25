@@ -4,7 +4,7 @@
   "translucency": true,
   "showViewHeader": false,
   "baseFontSize": 14,
-  "interfaceFontFamily": "",
+  "interfaceFontFamily": "SF Pro Display,SF Pro Rounded",
   "baseFontSizeAction": false,
   "enabledCssSnippets": [
     "inject",
