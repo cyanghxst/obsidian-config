@@ -9,7 +9,8 @@
   "enabledCssSnippets": [
     "inject",
     "snippet",
-    "big-math"
+    "big-math",
+    "image_align"
   ],
   "nativeMenus": true,
   "theme": "obsidian"
