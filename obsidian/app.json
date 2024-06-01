@@ -17,5 +17,6 @@
   "propertiesInDocument": "hidden",
   "rightToLeft": false,
   "focusNewTab": true,
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "smartIndentList": false
 }
