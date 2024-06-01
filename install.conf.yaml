@@ -1,14 +1,14 @@
 - defaults:
-  link:
-    relink: true
+    link:
+      relink: true
 
 - clean: ['~']
 
 - link:
-  ~/Obsidian/Personal/.obsidian/:
-    glob: true
-    path: obsidian/*
-  ~/Obsidian/Personal/.obsidian.vimrc: obsidian.vimrc
+    ~/Obsidian/Personal/.obsidian/:
+      glob: true
+      path: obsidian/*
+    ~/Obsidian/Personal/.obsidian.vimrc: obsidian.vimrc
 
 - shell:
-  - ['git submodule update --init --recursive', Install submodules]
+    - ['git submodule update --init --recursive', Install submodules]
