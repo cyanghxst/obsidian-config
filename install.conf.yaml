@@ -5,8 +5,8 @@
 - clean: ['~']
 
 - link:
-  ~/Obsidian/Personal/.obsidian: obsidian/obsidian/
-  ~/Obsidian/Personal/.obsidian.vimrc: obsidian/obsidian.vimrc
+  ~/Obsidian/Personal/.obsidian: obsidian/
+  ~/Obsidian/Personal/.obsidian.vimrc: obsidian.vimrc
 
 - shell:
   - ['git submodule update --init --recursive', Install submodules]
