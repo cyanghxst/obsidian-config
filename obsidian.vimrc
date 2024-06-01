@@ -1,6 +1,6 @@
 " Better up/down
-nmap j gj
-nmap k gk
+" nmap j gj
+" nmap k gk
 
 " Clear highlight search
 nmap <CR> :nohl
