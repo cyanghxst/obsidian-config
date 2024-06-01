@@ -3,7 +3,7 @@
   "minimal-advanced@@cursor": "default",
   "minimal-style@@icon-muted": 0.5,
   "minimal-style@@active-line-on": false,
-  "minimal-style@@sidebar-lines-off": false,
+  "minimal-style@@sidebar-lines-off": true,
   "minimal-style@@window-title-off": false,
   "minimal-style@@file-header-visibility": "minimal-tab-title-visible",
   "minimal-style@@file-header-justify": "center",
@@ -50,7 +50,6 @@
   "minimal-style@@tag-color@@light": "#FFFFFF",
   "minimal-style@@tag-background@@light": "#0E7DFE",
   "minimal-style@@tag-background-hover@@light": "#A6CFFF",
-  "minimal-style@@tab-stacked-pane-width": 800,
   "minimal-style@@tx2@@dark": "#FFFFFFAB",
   "minimal-style@@workspace-background-translucent@@dark": "#00000066",
   "minimal-style@@tab-stacked-spine-orientation": "tab-stack-top",
@@ -58,5 +57,8 @@
   "minimal-style@@bold-color@@dark": "#5288EC",
   "minimal-style@@bold-weight": 600,
   "minimal-style@@code-normal@@dark": "#B3B3B3",
-  "minimal-style@@h1-weight": 600
+  "minimal-style@@h1-weight": 600,
+  "minimal-style@@image-muted": 0.9,
+  "minimal-style@@image-radius": 11,
+  "minimal-style@@tab-stacked-pane-width": 1000
 }
