@@ -5,9 +5,10 @@
 - clean: ['~']
 
 - link:
-    ~/Obsidian/Personal/.obsidian/:
-      glob: true
-      path: obsidian/*
+    # ~/Obsidian/Personal/.obsidian/:
+    #   glob: true
+    #   path: obsidian/*
+    ~/Obsidian/Personal/.obsidian/: obsidian/
     ~/Obsidian/Personal/.obsidian.vimrc: obsidian.vimrc
 
 - shell:
