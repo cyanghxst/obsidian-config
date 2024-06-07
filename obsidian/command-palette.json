@@ -3,6 +3,7 @@
     "file-explorer:move-file",
     "app:delete-file",
     "editor:toggle-source",
-    "app:open-vault"
+    "app:open-vault",
+    "workspace:toggle-stacked-tabs"
   ]
 }
