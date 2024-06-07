@@ -18,5 +18,5 @@
   "rightToLeft": false,
   "focusNewTab": true,
   "alwaysUpdateLinks": true,
-  "smartIndentList": false
+  "smartIndentList": true
 }
