@@ -34,7 +34,7 @@
   "minimal-style@@h4-size": "10pt",
   "minimal-style@@h5-size": "10pt",
   "minimal-style@@h6-size": "10pt",
-  "minimal-style@@hl2@@dark": "#74662C",
+  "minimal-style@@hl2@@dark": "#5B5021",
   "minimal-style@@h1-l": false,
   "minimal-style@@maximize-tables-off": "maximize-tables",
   "minimal-style@@callouts-style": "callouts-default",
@@ -59,6 +59,7 @@
   "minimal-style@@code-normal@@dark": "#B3B3B3",
   "minimal-style@@h1-weight": 600,
   "minimal-style@@image-muted": 0.9,
-  "minimal-style@@image-radius": 11,
-  "minimal-style@@tab-stacked-pane-width": 1000
+  "minimal-style@@image-radius": 10,
+  "minimal-style@@zoom-off": false,
+  "minimal-style@@tab-stacked-pane-width": 800
 }
