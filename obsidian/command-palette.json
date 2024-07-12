@@ -1,9 +1,10 @@
 {
   "pinned": [
-    "file-explorer:move-file",
+    "editor:attach-file",
     "app:delete-file",
-    "editor:toggle-source",
     "app:open-vault",
-    "workspace:toggle-stacked-tabs"
+    "file-explorer:move-file",
+    "workspace:toggle-stacked-tabs",
+    "editor:toggle-source"
   ]
 }
