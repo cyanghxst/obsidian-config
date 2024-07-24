@@ -1,5 +1,6 @@
 # Ignore Mac system files
 .DS_Store
 
-# Ignore workspace file
+# Ignore workspace files
 obsidian/workspace.json
+obsidian/workspaces.json
