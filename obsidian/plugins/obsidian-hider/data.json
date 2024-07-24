@@ -1,5 +1,4 @@
 {
-  "hideRibbon": true,
   "hideStatus": true,
   "hideTabs": true,
   "hideScroll": true,
@@ -7,9 +6,10 @@
   "hideTooltips": true,
   "hideFileNavButtons": false,
   "hideSearchSuggestions": true,
-  "hideSearchCounts": false,
+  "hideSearchCounts": true,
   "hideInstructions": true,
   "hidePropertiesReading": false,
   "hideVault": true,
+  "hideRibbon": true,
   "hideMeta": true
 }
