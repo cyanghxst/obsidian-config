@@ -4,9 +4,13 @@
 
 - clean: ['~']
 
+- create:
+     ~/obsidian:
+      mode: 0755
+ 
 - link:
-    ~/Obsidian/Personal/.obsidian: obsidian
-    ~/Obsidian/Personal/.obsidian.vimrc: obsidian.vimrc
+    ~/obsidian/vault/.obsidian: obsidian
+    ~/obsidian/vault/.obsidian.vimrc: obsidian.vimrc
 
 - shell:
     - ['git submodule update --init --recursive', Install submodules]
