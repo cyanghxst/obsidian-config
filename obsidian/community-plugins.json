@@ -4,10 +4,10 @@
   "obsidian-style-settings",
   "obsidian-minimal-settings",
   "omnisearch",
-  "obsidian-contextual-typography",
   "darlal-switcher-plus",
   "vim-reading-view-navigation",
-  "obsidian-vimrc-support",
   "obsidian-filename-heading-sync",
-  "mrj-jump-to-link"
+  "mrj-jump-to-link",
+  "obsidian-vimrc-support",
+  "obsidian-contextual-typography"
 ]
