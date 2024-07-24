@@ -4,7 +4,7 @@
   "showLineNumber": false,
   "promptDelete": false,
   "autoPairBrackets": true,
-  "autoPairMarkdown": true,
+  "autoPairMarkdown": false,
   "spellcheck": false,
   "foldIndent": true,
   "showInlineTitle": false,
@@ -18,5 +18,6 @@
   "rightToLeft": false,
   "focusNewTab": true,
   "alwaysUpdateLinks": true,
-  "smartIndentList": true
+  "smartIndentList": true,
+  "showRibbon": false
 }
