@@ -4,7 +4,7 @@
   "showLineNumber": false,
   "promptDelete": false,
   "autoPairBrackets": true,
-  "autoPairMarkdown": false,
+  "autoPairMarkdown": true,
   "spellcheck": false,
   "foldIndent": true,
   "showInlineTitle": false,
