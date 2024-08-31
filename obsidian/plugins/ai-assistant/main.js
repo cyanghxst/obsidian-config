@@ -27,508 +27,34 @@ __export(main_exports, {
   default: () => AiAssistantPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/modal.ts
-var import_obsidian = require("obsidian");
-var PromptModal = class extends import_obsidian.Modal {
-  constructor(app2, onSubmit, is_img_modal, settings) {
-    super(app2);
-    this.onSubmit = onSubmit;
-    this.settings = settings;
-    this.is_img_modal = is_img_modal;
-    this.param_dict = {
-      num_img: "1",
-      is_hd: "true"
-    };
-  }
-  build_image_modal() {
-    this.titleEl.setText("What can I generate for you?");
-    const prompt_container = this.contentEl.createEl("div", {
-      cls: "prompt-modal-container"
-    });
-    this.contentEl.append(prompt_container);
-    const prompt_left_container = prompt_container.createEl("div", {
-      cls: "prompt-left-container"
-    });
-    const desc1 = prompt_left_container.createEl("p", {
-      cls: "description"
-    });
-    desc1.innerText = "Resolution";
-    const prompt_right_container = prompt_container.createEl("div", {
-      cls: "prompt-right-container"
-    });
-    const resolution_dropdown = prompt_right_container.createEl("select");
-    let options = ["256x256", "512x512", "1024x1024"];
-    this.param_dict["img_size"] = "256x256";
-    if (this.settings["model"] === "dall-e-3") {
-      options = ["1024x1024", "1792x1024", "1024x1792"];
-      this.param_dict["img_size"] = "1024x1024";
-    }
-    options.forEach((option) => {
-      const optionEl = resolution_dropdown.createEl("option", {
-        text: option
-      });
-      optionEl.value = option;
-      if (option === this.param_dict["img_size"]) {
-        optionEl.selected = true;
-      }
-    });
-    resolution_dropdown.addEventListener("change", (event) => {
-      const selectElement = event.target;
-      this.param_dict["img_size"] = selectElement.value;
-    });
-    if (this.settings["model"] === "dall-e-2") {
-      const desc2 = prompt_left_container.createEl("p", {
-        cls: "description"
-      });
-      desc2.innerText = "Num images";
-      const num_img_dropdown = prompt_right_container.createEl("select");
-      const num_choices = [...Array(10).keys()].map(
-        (x) => (x + 1).toString()
-      );
-      num_choices.forEach((option) => {
-        const optionEl = num_img_dropdown.createEl("option", {
-          text: option
-        });
-        optionEl.value = option;
-        if (option === this.param_dict["num_img"]) {
-          optionEl.selected = true;
-        }
-      });
-      num_img_dropdown.addEventListener("change", (event) => {
-        const selectElement = event.target;
-        this.param_dict["num_img"] = selectElement.value;
-      });
-    }
-    if (this.settings["model"] === "dall-e-3") {
-      const desc2 = prompt_left_container.createEl("p", {
-        cls: "description"
-      });
-      desc2.innerText = "HD?";
-      const is_hd = prompt_right_container.createEl("input", {
-        type: "checkbox"
-      });
-      is_hd.checked = this.param_dict["is_hd"] === "true";
-      is_hd.addEventListener("change", (event) => {
-        this.param_dict["is_hd"] = is_hd.checked.toString();
-      });
-    }
-  }
-  submit_action() {
-    if (this.param_dict["prompt_text"]) {
-      this.close();
-      this.onSubmit(this.param_dict);
-    }
-  }
-  onOpen() {
-    const { contentEl } = this;
-    this.titleEl.setText("What can I do for you?");
-    const input_container = contentEl.createEl("div", {
-      cls: "chat-button-container-right"
-    });
-    const input_field = input_container.createEl("input", {
-      placeholder: "Your prompt here",
-      type: "text"
-    });
-    input_field.addEventListener("keypress", (evt) => {
-      if (evt.key === "Enter") {
-        this.param_dict["prompt_text"] = input_field.value.trim();
-        this.submit_action();
-      }
-    });
-    const submit_btn = input_container.createEl("button", {
-      text: "Submit",
-      cls: "mod-cta"
-    });
-    submit_btn.addEventListener("click", () => {
-      this.param_dict["prompt_text"] = input_field.value.trim();
-      this.submit_action();
-    });
-    input_field.focus();
-    input_field.select();
-    if (this.is_img_modal) {
-      this.build_image_modal();
-    }
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-var ChatModal = class extends import_obsidian.Modal {
-  constructor(app2, openai) {
-    super(app2);
-    this.prompt_table = [];
-    this.send_action = async () => {
-      if (this.prompt_text && !this.is_generating_answer) {
-        this.is_generating_answer = true;
-        const prompt = {
-          role: "user",
-          content: this.prompt_text
-        };
-        this.prompt_table.push(prompt, {
-          role: "assistant"
-        });
-        this.clearModalContent();
-        await this.displayModalContent();
-        this.prompt_table.pop();
-        const answers = this.modalEl.getElementsByClassName("chat-div assistant");
-        const view = this.app.workspace.getActiveViewOfType(
-          import_obsidian.MarkdownView
-        );
-        const answer = await this.openai.api_call(
-          this.prompt_table,
-          answers[answers.length - 1],
-          view
-        );
-        if (answer) {
-          this.prompt_table.push({
-            role: "assistant",
-            content: answer
-          });
-        }
-        this.clearModalContent();
-        await this.displayModalContent();
-        this.is_generating_answer = false;
-      }
-    };
-    this.displayModalContent = async () => {
-      const { contentEl } = this;
-      const container = this.contentEl.createEl("div", {
-        cls: "chat-modal-container"
-      });
-      const view = this.app.workspace.getActiveViewOfType(
-        import_obsidian.MarkdownView
-      );
-      for (const x of this.prompt_table) {
-        const div = container.createEl("div", {
-          cls: `chat-div ${x["role"]}`
-        });
-        if (x["role"] === "assistant") {
-          await import_obsidian.MarkdownRenderer.renderMarkdown(
-            x["content"],
-            div,
-            "",
-            view
-          );
-        } else {
-          if (Array.isArray(x["content"])) {
-            const content = x["content"][0];
-            if (content["type"] === "text") {
-              div.createEl("p", {
-                text: content["text"]
-              });
-            } else {
-              const image = div.createEl("img", { cls: "image-modal-image" });
-              image.setAttribute(
-                "src",
-                content["image_url"]["url"]
-              );
-            }
-          } else {
-            div.createEl("p", {
-              text: x["content"]
-            });
-          }
-        }
-        div.addEventListener("click", async () => {
-          await navigator.clipboard.writeText(x["content"]);
-          new import_obsidian.Notice(x["content"] + " Copied to clipboard!");
-        });
-      }
-      const button_container = contentEl.createEl("div", {
-        cls: "chat-button-container"
-      });
-      button_container.createEl("p", {
-        text: "Type here:"
-      });
-      const right_button_container = button_container.createEl("div", {
-        cls: "chat-button-container-right"
-      });
-      const hidden_add_file_button = right_button_container.createEl("input", {
-        type: "file",
-        cls: "hidden-file"
-      });
-      hidden_add_file_button.setAttribute("accept", ".png, .jpg, .jpeg");
-      hidden_add_file_button.addEventListener(
-        "change",
-        async (e) => {
-          const files = e.target.files;
-          if (files && files.length > 0) {
-            const base64String = await convertBlobToBase64(files[0]);
-            this.prompt_table.push({
-              "role": "user",
-              "content": [{
-                "type": "image_url",
-                "image_url": {
-                  "url": base64String,
-                  "detail": "medium"
-                }
-              }]
-            });
-            this.clearModalContent();
-            this.displayModalContent();
-          }
-        }
-      );
-      const add_file_button = right_button_container.createEl("button");
-      add_file_button.innerHTML = "&#x1F4F7;";
-      add_file_button.addEventListener("click", () => {
-        hidden_add_file_button.click();
-      });
-      const input_field = right_button_container.createEl("input", {
-        placeholder: "Your prompt here",
-        type: "text"
-      });
-      input_field.addEventListener("keypress", (evt) => {
-        if (evt.key === "Enter") {
-          this.prompt_text = input_field.value.trim();
-          this.send_action();
-        }
-      });
-      const submit_btn = right_button_container.createEl("button", {
-        text: "Submit",
-        cls: "mod-cta"
-      });
-      submit_btn.addEventListener("click", () => {
-        this.prompt_text = input_field.value.trim();
-        this.send_action();
-      });
-      input_field.focus();
-      input_field.select();
-      const button_container_2 = contentEl.createEl("div", {
-        cls: "chat-button-container-right upper-border"
-      });
-      const clear_button = button_container_2.createEl("button", {
-        text: "Clear"
-      });
-      const copy_button = button_container_2.createEl("button", {
-        text: "Copy conversation"
-      });
-      clear_button.addEventListener("click", () => {
-        this.prompt_table = [];
-        this.clearModalContent();
-        this.displayModalContent();
-      });
-      copy_button.addEventListener("click", async () => {
-        const conversation = this.prompt_table.map((x) => x["content"]).join("\n\n");
-        await navigator.clipboard.writeText(conversation);
-        new import_obsidian.Notice("Conversation copied to clipboard");
-      });
-      const convertBlobToBase64 = (blob) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onerror = () => reject(reader.error);
-          reader.onload = () => {
-            resolve(reader.result);
-          };
-          reader.readAsDataURL(blob);
-        });
-      };
-    };
-    this.openai = openai;
-    this.is_generating_answer = false;
-  }
-  clearModalContent() {
-    this.contentEl.innerHTML = "";
-    this.prompt_text = "";
-  }
-  onOpen() {
-    this.titleEl.setText("What can I do for you?");
-    this.displayModalContent();
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-var ImageModal = class extends import_obsidian.Modal {
-  constructor(app2, imageUrls, title, assetFolder) {
-    super(app2);
-    this.downloadImage = async (url, path) => {
-      const response = await (0, import_obsidian.requestUrl)({ url });
-      await this.app.vault.adapter.writeBinary(path, response.arrayBuffer);
-    };
-    this.getImageName = (url) => {
-      return url.split("/").pop() + ".png";
-    };
-    this.saveImagesToVault = async (imageUrls, folderPath) => {
-      for (const url of imageUrls) {
-        const imageName = this.getImageName(url);
-        const savePath = folderPath + "/" + imageName;
-        await this.downloadImage(url, savePath);
-      }
-    };
-    this.imageUrls = imageUrls;
-    this.selectedImageUrls = [];
-    this.titleEl.setText(title);
-    this.assetFolder = assetFolder;
-  }
-  onOpen() {
-    const container = this.contentEl.createEl("div", {
-      cls: "image-modal-container"
-    });
-    for (const imageUrl of this.imageUrls) {
-      const imgWrapper = container.createEl("div", {
-        cls: "image-modal-wrapper"
-      });
-      const img = imgWrapper.createEl("img", {
-        cls: "image-modal-image"
-      });
-      img.src = imageUrl;
-      img.addEventListener("click", async () => {
-        if (this.selectedImageUrls.includes(imageUrl)) {
-          this.selectedImageUrls = this.selectedImageUrls.filter(
-            (url) => url !== imageUrl
-          );
-          img.style.border = "none";
-        } else {
-          this.selectedImageUrls.push(imageUrl);
-          img.style.border = "2px solid blue";
-        }
-        new import_obsidian.Notice("Images copied to clipboard");
-      });
-    }
-  }
-  async onClose() {
-    if (this.selectedImageUrls.length > 0) {
-      if (!app.vault.getAbstractFileByPath(this.assetFolder)) {
-        try {
-          await app.vault.createFolder(this.assetFolder);
-        } catch (error) {
-          console.error("Error creating directory:", error);
-        }
-      }
-      try {
-        await this.saveImagesToVault(
-          this.selectedImageUrls,
-          this.assetFolder
-        );
-      } catch (e) {
-        new import_obsidian.Notice("Error while downloading images");
-      }
-      try {
-        await navigator.clipboard.writeText(
-          this.selectedImageUrls.map((x) => `![](${this.getImageName(x)})`).join("\n\n") + "\n"
-        );
-      } catch (e) {
-        new import_obsidian.Notice("Error while copying images to clipboard");
-      }
-    }
-    this.contentEl.empty();
-  }
-};
-var SpeechModal = class extends import_obsidian.Modal {
-  constructor(app2, openai, language, editor) {
-    super(app2);
-    this.stopRecording = () => {
-      this.recorder.stop();
-      if (this.gumStream) {
-        this.gumStream.getAudioTracks()[0].stop();
-      }
-    };
-    this.start_recording = async (constraints, mimeType) => {
-      try {
-        let chunks = [];
-        this.gumStream = await navigator.mediaDevices.getUserMedia(
-          constraints
-        );
-        const options = {
-          audioBitsPerSecond: 256e3,
-          mimeType
-        };
-        this.recorder = new MediaRecorder(this.gumStream, options);
-        this.recorder.ondataavailable = async (e) => {
-          chunks.push(e.data);
-          if (this.recorder.state == "inactive" && !this.is_cancelled) {
-            const audio = new File(
-              chunks,
-              "tmp." + mimeType.split("/").at(-1),
-              {
-                type: mimeType
-              }
-            );
-            const answer = await this.openai.whisper_api_call(
-              audio,
-              this.language
-            );
-            if (answer) {
-              this.editor.replaceRange(
-                answer,
-                this.editor.getCursor()
-              );
-              const newPos = {
-                line: this.editor.getCursor().line,
-                ch: this.editor.getCursor().ch + answer.length
-              };
-              this.editor.setCursor(newPos.line, newPos.ch);
-            }
-            this.close();
-          }
-        };
-        this.recorder.start(1e3);
-        chunks = [];
-      } catch (err) {
-        new import_obsidian.Notice(err);
-      }
-    };
-    this.openai = openai;
-    this.language = language;
-    this.editor = editor;
-    this.is_cancelled = false;
-  }
-  async onOpen() {
-    const { contentEl } = this;
-    this.titleEl.setText("Speech to Text");
-    let mimeType;
-    if (MediaRecorder.isTypeSupported("audio/webm")) {
-      mimeType = "audio/webm";
-    } else {
-      mimeType = "video/mp4";
-    }
-    const constraints = { audio: true };
-    const button_container = contentEl.createEl("div", {
-      cls: "speech-modal-container"
-    });
-    const record_button = button_container.createEl("button", {
-      text: "Start Recording",
-      cls: "record-button"
-    });
-    record_button.addEventListener("click", () => {
-      if (this.recorder && this.recorder.state === "recording") {
-        new import_obsidian.Notice("Stop recording");
-        record_button.disabled = true;
-        this.titleEl.setText("Processing record");
-        this.stopRecording();
-      } else {
-        new import_obsidian.Notice("Start recording");
-        record_button.setText("Stop Recording");
-        record_button.style.borderColor = "red";
-        this.titleEl.setText("Listening...");
-        this.start_recording(constraints, mimeType);
-      }
-    });
-    const cancel_button = button_container.createEl("button", {
-      text: "Cancel"
-    });
-    cancel_button.addEventListener("click", (e) => {
-      this.is_cancelled = true;
-      this.close();
-    });
-  }
-  async onClose() {
-    if (this.recorder && this.recorder.state === "recording") {
-      new import_obsidian.Notice("Stop recording");
-      this.stopRecording();
-    }
-    this.contentEl.empty();
-  }
-};
+var import_obsidian3 = require("obsidian");
 
 // src/openai_api.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian = require("obsidian");
+
+// node_modules/openai/error.mjs
+var error_exports = {};
+__export(error_exports, {
+  APIConnectionError: () => APIConnectionError,
+  APIConnectionTimeoutError: () => APIConnectionTimeoutError,
+  APIError: () => APIError,
+  APIUserAbortError: () => APIUserAbortError,
+  AuthenticationError: () => AuthenticationError,
+  BadRequestError: () => BadRequestError,
+  ConflictError: () => ConflictError,
+  InternalServerError: () => InternalServerError,
+  NotFoundError: () => NotFoundError,
+  OpenAIError: () => OpenAIError,
+  PermissionDeniedError: () => PermissionDeniedError,
+  RateLimitError: () => RateLimitError,
+  UnprocessableEntityError: () => UnprocessableEntityError
+});
 
 // node_modules/openai/version.mjs
-var VERSION = "4.26.0";
+var VERSION = "4.52.7";
 
 // node_modules/openai/_shims/registry.mjs
 var auto = false;
@@ -647,145 +173,6 @@ function getRuntime({ manuallyImported } = {}) {
 if (!kind)
   setShims(getRuntime(), { auto: true });
 
-// node_modules/openai/error.mjs
-var error_exports = {};
-__export(error_exports, {
-  APIConnectionError: () => APIConnectionError,
-  APIConnectionTimeoutError: () => APIConnectionTimeoutError,
-  APIError: () => APIError,
-  APIUserAbortError: () => APIUserAbortError,
-  AuthenticationError: () => AuthenticationError,
-  BadRequestError: () => BadRequestError,
-  ConflictError: () => ConflictError,
-  InternalServerError: () => InternalServerError,
-  NotFoundError: () => NotFoundError,
-  OpenAIError: () => OpenAIError,
-  PermissionDeniedError: () => PermissionDeniedError,
-  RateLimitError: () => RateLimitError,
-  UnprocessableEntityError: () => UnprocessableEntityError
-});
-var OpenAIError = class extends Error {
-};
-var APIError = class extends OpenAIError {
-  constructor(status, error, message, headers) {
-    super(`${APIError.makeMessage(status, error, message)}`);
-    this.status = status;
-    this.headers = headers;
-    const data = error;
-    this.error = data;
-    this.code = data == null ? void 0 : data["code"];
-    this.param = data == null ? void 0 : data["param"];
-    this.type = data == null ? void 0 : data["type"];
-  }
-  static makeMessage(status, error, message) {
-    const msg = (error == null ? void 0 : error.message) ? typeof error.message === "string" ? error.message : JSON.stringify(error.message) : error ? JSON.stringify(error) : message;
-    if (status && msg) {
-      return `${status} ${msg}`;
-    }
-    if (status) {
-      return `${status} status code (no body)`;
-    }
-    if (msg) {
-      return msg;
-    }
-    return "(no status code or body)";
-  }
-  static generate(status, errorResponse, message, headers) {
-    if (!status) {
-      return new APIConnectionError({ cause: castToError(errorResponse) });
-    }
-    const error = errorResponse == null ? void 0 : errorResponse["error"];
-    if (status === 400) {
-      return new BadRequestError(status, error, message, headers);
-    }
-    if (status === 401) {
-      return new AuthenticationError(status, error, message, headers);
-    }
-    if (status === 403) {
-      return new PermissionDeniedError(status, error, message, headers);
-    }
-    if (status === 404) {
-      return new NotFoundError(status, error, message, headers);
-    }
-    if (status === 409) {
-      return new ConflictError(status, error, message, headers);
-    }
-    if (status === 422) {
-      return new UnprocessableEntityError(status, error, message, headers);
-    }
-    if (status === 429) {
-      return new RateLimitError(status, error, message, headers);
-    }
-    if (status >= 500) {
-      return new InternalServerError(status, error, message, headers);
-    }
-    return new APIError(status, error, message, headers);
-  }
-};
-var APIUserAbortError = class extends APIError {
-  constructor({ message } = {}) {
-    super(void 0, void 0, message || "Request was aborted.", void 0);
-    this.status = void 0;
-  }
-};
-var APIConnectionError = class extends APIError {
-  constructor({ message, cause }) {
-    super(void 0, void 0, message || "Connection error.", void 0);
-    this.status = void 0;
-    if (cause)
-      this.cause = cause;
-  }
-};
-var APIConnectionTimeoutError = class extends APIConnectionError {
-  constructor({ message } = {}) {
-    super({ message: message != null ? message : "Request timed out." });
-  }
-};
-var BadRequestError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 400;
-  }
-};
-var AuthenticationError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 401;
-  }
-};
-var PermissionDeniedError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 403;
-  }
-};
-var NotFoundError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 404;
-  }
-};
-var ConflictError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 409;
-  }
-};
-var UnprocessableEntityError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 422;
-  }
-};
-var RateLimitError = class extends APIError {
-  constructor() {
-    super(...arguments);
-    this.status = 429;
-  }
-};
-var InternalServerError = class extends APIError {
-};
-
 // node_modules/openai/streaming.mjs
 var Stream = class {
   constructor(iterator, controller) {
@@ -794,27 +181,6 @@ var Stream = class {
   }
   static fromSSEResponse(response, controller) {
     let consumed = false;
-    const decoder = new SSEDecoder();
-    async function* iterMessages() {
-      if (!response.body) {
-        controller.abort();
-        throw new OpenAIError(`Attempted to iterate over a response with no body`);
-      }
-      const lineDecoder = new LineDecoder();
-      const iter = readableStreamAsyncIterable(response.body);
-      for await (const chunk of iter) {
-        for (const line of lineDecoder.decode(chunk)) {
-          const sse = decoder.decode(line);
-          if (sse)
-            yield sse;
-        }
-      }
-      for (const line of lineDecoder.flush()) {
-        const sse = decoder.decode(line);
-        if (sse)
-          yield sse;
-      }
-    }
     async function* iterator() {
       if (consumed) {
         throw new Error("Cannot iterate over a consumed stream, use `.tee()` to split the stream.");
@@ -822,7 +188,7 @@ var Stream = class {
       consumed = true;
       let done = false;
       try {
-        for await (const sse of iterMessages()) {
+        for await (const sse of _iterSSEMessages(response, controller)) {
           if (done)
             continue;
           if (sse.data.startsWith("[DONE]")) {
@@ -842,6 +208,19 @@ var Stream = class {
               throw new APIError(void 0, data.error, void 0, void 0);
             }
             yield data;
+          } else {
+            let data;
+            try {
+              data = JSON.parse(sse.data);
+            } catch (e) {
+              console.error(`Could not parse message into JSON:`, sse.data);
+              console.error(`From chunk:`, sse.raw);
+              throw e;
+            }
+            if (sse.event == "error") {
+              throw new APIError(void 0, data.error, data.message, void 0);
+            }
+            yield { event: sse.event, data };
           }
         }
         done = true;
@@ -958,6 +337,64 @@ var Stream = class {
     });
   }
 };
+async function* _iterSSEMessages(response, controller) {
+  if (!response.body) {
+    controller.abort();
+    throw new OpenAIError(`Attempted to iterate over a response with no body`);
+  }
+  const sseDecoder = new SSEDecoder();
+  const lineDecoder = new LineDecoder();
+  const iter = readableStreamAsyncIterable(response.body);
+  for await (const sseChunk of iterSSEChunks(iter)) {
+    for (const line of lineDecoder.decode(sseChunk)) {
+      const sse = sseDecoder.decode(line);
+      if (sse)
+        yield sse;
+    }
+  }
+  for (const line of lineDecoder.flush()) {
+    const sse = sseDecoder.decode(line);
+    if (sse)
+      yield sse;
+  }
+}
+async function* iterSSEChunks(iterator) {
+  let data = new Uint8Array();
+  for await (const chunk of iterator) {
+    if (chunk == null) {
+      continue;
+    }
+    const binaryChunk = chunk instanceof ArrayBuffer ? new Uint8Array(chunk) : typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
+    let newData = new Uint8Array(data.length + binaryChunk.length);
+    newData.set(data);
+    newData.set(binaryChunk, data.length);
+    data = newData;
+    let patternIndex;
+    while ((patternIndex = findDoubleNewlineIndex(data)) !== -1) {
+      yield data.slice(0, patternIndex);
+      data = data.slice(patternIndex);
+    }
+  }
+  if (data.length > 0) {
+    yield data;
+  }
+}
+function findDoubleNewlineIndex(buffer) {
+  const newline = 10;
+  const carriage = 13;
+  for (let i = 0; i < buffer.length - 2; i++) {
+    if (buffer[i] === newline && buffer[i + 1] === newline) {
+      return i + 2;
+    }
+    if (buffer[i] === carriage && buffer[i + 1] === carriage) {
+      return i + 2;
+    }
+    if (buffer[i] === carriage && buffer[i + 1] === newline && i + 3 < buffer.length && buffer[i + 2] === carriage && buffer[i + 3] === newline) {
+      return i + 4;
+    }
+  }
+  return -1;
+}
 var SSEDecoder = class {
   constructor() {
     this.event = null;
@@ -1017,6 +454,9 @@ var LineDecoder = class {
     }
     const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || "");
     let lines = text.split(LineDecoder.NEWLINE_REGEXP);
+    if (trailingNewline) {
+      lines.pop();
+    }
     if (lines.length === 1 && !trailingNewline) {
       this.buffer.push(lines[0]);
       return [];
@@ -1064,8 +504,8 @@ var LineDecoder = class {
     return lines;
   }
 };
-LineDecoder.NEWLINE_CHARS = /* @__PURE__ */ new Set(["\n", "\r", "\v", "\f", "", "", "", "\x85", "\u2028", "\u2029"]);
-LineDecoder.NEWLINE_REGEXP = /\r\n|[\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]/g;
+LineDecoder.NEWLINE_CHARS = /* @__PURE__ */ new Set(["\n", "\r"]);
+LineDecoder.NEWLINE_REGEXP = /\r\n|[\n\r]/g;
 function partition(str2, delimiter) {
   const index = str2.indexOf(delimiter);
   if (index !== -1) {
@@ -1108,9 +548,10 @@ var isBlobLike = (value) => value != null && typeof value === "object" && typeof
 var isUploadable = (value) => {
   return isFileLike(value) || isResponseLike(value) || isFsReadStream(value);
 };
-async function toFile(value, name, options = {}) {
+async function toFile(value, name, options) {
   var _a2, _b, _c;
   value = await value;
+  options != null ? options : options = isFileLike(value) ? { lastModified: value.lastModified, type: value.type } : {};
   if (isResponseLike(value)) {
     const blob = await value.blob();
     name || (name = (_a2 = new URL(value.url).pathname.split(/[\\/]/).pop()) != null ? _a2 : "unknown_file");
@@ -1224,7 +665,8 @@ async function defaultParseResponse(props) {
     return response;
   }
   const contentType = response.headers.get("content-type");
-  if (contentType == null ? void 0 : contentType.includes("application/json")) {
+  const isJSON = (contentType == null ? void 0 : contentType.includes("application/json")) || (contentType == null ? void 0 : contentType.includes("application/vnd.api+json"));
+  if (isJSON) {
     const json = await response.json();
     debug("response", response.status, response.url, response.headers, json);
     return json;
@@ -1352,7 +794,10 @@ var APIClient = class {
     return this.methodRequest("delete", path, opts);
   }
   methodRequest(method, path, opts) {
-    return this.request(Promise.resolve(opts).then((opts2) => ({ method, path, ...opts2 })));
+    return this.request(Promise.resolve(opts).then(async (opts2) => {
+      const body = opts2 && isBlobLike(opts2 == null ? void 0 : opts2.body) ? new DataView(await opts2.body.arrayBuffer()) : (opts2 == null ? void 0 : opts2.body) instanceof DataView ? opts2.body : (opts2 == null ? void 0 : opts2.body) instanceof ArrayBuffer ? new DataView(opts2.body) : opts2 && ArrayBuffer.isView(opts2 == null ? void 0 : opts2.body) ? new DataView(opts2.body.buffer) : opts2 == null ? void 0 : opts2.body;
+      return { method, path, ...opts2, body };
+    }));
   }
   getAPIList(path, Page2, opts) {
     return this.requestAPIList(Page2, { method: "get", path, ...opts });
@@ -1367,13 +812,15 @@ var APIClient = class {
         const encoded = encoder.encode(body);
         return encoded.length.toString();
       }
+    } else if (ArrayBuffer.isView(body)) {
+      return body.byteLength.toString();
     }
     return null;
   }
   buildRequest(options) {
     var _a2, _b, _c, _d, _e, _f;
     const { method, path, query, headers = {} } = options;
-    const body = isMultipartBody(options.body) ? options.body.body : options.body ? JSON.stringify(options.body, null, 2) : null;
+    const body = ArrayBuffer.isView(options.body) || options.__binaryRequest && typeof options.body === "string" ? options.body : isMultipartBody(options.body) ? options.body.body : options.body ? JSON.stringify(options.body, null, 2) : null;
     const contentLength = this.calculateContentLength(body);
     const url = this.buildURL(path, query);
     if ("timeout" in options)
@@ -1426,7 +873,7 @@ var APIClient = class {
    * This is useful for cases where you want to add certain headers based off of
    * the request properties, e.g. `method` or `url`.
    */
-  async prepareRequest(request, { url, options }) {
+  async prepareRequest(request2, { url, options }) {
   }
   parseHeaders(headers) {
     return !headers ? {} : Symbol.iterator in headers ? Object.fromEntries(Array.from(headers).map((header) => [...header])) : { ...headers };
@@ -1482,8 +929,8 @@ var APIClient = class {
     return { response, options, controller };
   }
   requestAPIList(Page2, options) {
-    const request = this.makeRequest(options, null);
-    return new PagePromise(this, request, Page2);
+    const request2 = this.makeRequest(options, null);
+    return new PagePromise(this, request2, Page2);
   }
   buildURL(path, query) {
     const url = isAbsoluteURL(path) ? new URL(path) : new URL(this.baseURL + (this.baseURL.endsWith("/") && path.startsWith("/") ? path.slice(1) : path));
@@ -1622,8 +1069,8 @@ var AbstractPage = class {
   }
 };
 var PagePromise = class extends APIPromise {
-  constructor(client, request, Page2) {
-    super(request, async (props) => new Page2(client, props.response, await defaultParseResponse(props), props.options));
+  constructor(client, request2, Page2) {
+    super(request2, async (props) => new Page2(client, props.response, await defaultParseResponse(props), props.options));
   }
   /**
    * Allow auto-paginating iteration on an unawaited list call, eg:
@@ -1662,6 +1109,7 @@ var requestOptionsKeys = {
   httpAgent: true,
   signal: true,
   idempotencyKey: true,
+  __binaryRequest: true,
   __binaryResponse: true,
   __streamClass: true
 };
@@ -1669,6 +1117,7 @@ var isRequestOptions = (obj) => {
   return typeof obj === "object" && obj !== null && !isEmptyObj(obj) && Object.keys(obj).every((k) => hasOwn(requestOptionsKeys, k));
 };
 var getPlatformProperties = () => {
+  var _a2, _b;
   if (typeof Deno !== "undefined" && Deno.build != null) {
     return {
       "X-Stainless-Lang": "js",
@@ -1676,7 +1125,7 @@ var getPlatformProperties = () => {
       "X-Stainless-OS": normalizePlatform(Deno.build.os),
       "X-Stainless-Arch": normalizeArch(Deno.build.arch),
       "X-Stainless-Runtime": "deno",
-      "X-Stainless-Runtime-Version": Deno.version
+      "X-Stainless-Runtime-Version": typeof Deno.version === "string" ? Deno.version : (_b = (_a2 = Deno.version) == null ? void 0 : _a2.deno) != null ? _b : "unknown"
     };
   }
   if (typeof EdgeRuntime !== "undefined") {
@@ -1841,7 +1290,8 @@ function applyHeadersMut(targetHeaders, newHeaders) {
   }
 }
 function debug(action, ...args) {
-  if (typeof process !== "undefined" && process.env["DEBUG"] === "true") {
+  var _a2;
+  if (typeof process !== "undefined" && ((_a2 = process == null ? void 0 : process.env) == null ? void 0 : _a2["DEBUG"]) === "true") {
     console.log(`OpenAI:DEBUG:${action}`, ...args);
   }
 }
@@ -1859,6 +1309,133 @@ var isRunningInBrowser = () => {
     typeof window.document !== "undefined" && // @ts-ignore
     typeof navigator !== "undefined"
   );
+};
+function isObj(obj) {
+  return obj != null && typeof obj === "object" && !Array.isArray(obj);
+}
+
+// node_modules/openai/error.mjs
+var OpenAIError = class extends Error {
+};
+var APIError = class extends OpenAIError {
+  constructor(status, error, message, headers) {
+    super(`${APIError.makeMessage(status, error, message)}`);
+    this.status = status;
+    this.headers = headers;
+    this.request_id = headers == null ? void 0 : headers["x-request-id"];
+    const data = error;
+    this.error = data;
+    this.code = data == null ? void 0 : data["code"];
+    this.param = data == null ? void 0 : data["param"];
+    this.type = data == null ? void 0 : data["type"];
+  }
+  static makeMessage(status, error, message) {
+    const msg = (error == null ? void 0 : error.message) ? typeof error.message === "string" ? error.message : JSON.stringify(error.message) : error ? JSON.stringify(error) : message;
+    if (status && msg) {
+      return `${status} ${msg}`;
+    }
+    if (status) {
+      return `${status} status code (no body)`;
+    }
+    if (msg) {
+      return msg;
+    }
+    return "(no status code or body)";
+  }
+  static generate(status, errorResponse, message, headers) {
+    if (!status) {
+      return new APIConnectionError({ cause: castToError(errorResponse) });
+    }
+    const error = errorResponse == null ? void 0 : errorResponse["error"];
+    if (status === 400) {
+      return new BadRequestError(status, error, message, headers);
+    }
+    if (status === 401) {
+      return new AuthenticationError(status, error, message, headers);
+    }
+    if (status === 403) {
+      return new PermissionDeniedError(status, error, message, headers);
+    }
+    if (status === 404) {
+      return new NotFoundError(status, error, message, headers);
+    }
+    if (status === 409) {
+      return new ConflictError(status, error, message, headers);
+    }
+    if (status === 422) {
+      return new UnprocessableEntityError(status, error, message, headers);
+    }
+    if (status === 429) {
+      return new RateLimitError(status, error, message, headers);
+    }
+    if (status >= 500) {
+      return new InternalServerError(status, error, message, headers);
+    }
+    return new APIError(status, error, message, headers);
+  }
+};
+var APIUserAbortError = class extends APIError {
+  constructor({ message } = {}) {
+    super(void 0, void 0, message || "Request was aborted.", void 0);
+    this.status = void 0;
+  }
+};
+var APIConnectionError = class extends APIError {
+  constructor({ message, cause }) {
+    super(void 0, void 0, message || "Connection error.", void 0);
+    this.status = void 0;
+    if (cause)
+      this.cause = cause;
+  }
+};
+var APIConnectionTimeoutError = class extends APIConnectionError {
+  constructor({ message } = {}) {
+    super({ message: message != null ? message : "Request timed out." });
+  }
+};
+var BadRequestError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 400;
+  }
+};
+var AuthenticationError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 401;
+  }
+};
+var PermissionDeniedError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 403;
+  }
+};
+var NotFoundError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 404;
+  }
+};
+var ConflictError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 409;
+  }
+};
+var UnprocessableEntityError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 422;
+  }
+};
+var RateLimitError = class extends APIError {
+  constructor() {
+    super(...arguments);
+    this.status = 429;
+  }
+};
+var InternalServerError = class extends APIError {
 };
 
 // node_modules/openai/pagination.mjs
@@ -1998,61 +1575,43 @@ var Audio2 = class extends APIResource {
   Audio3.Speech = Speech;
 })(Audio2 || (Audio2 = {}));
 
-// node_modules/openai/resources/beta/assistants/files.mjs
-var Files = class extends APIResource {
+// node_modules/openai/resources/batches.mjs
+var Batches = class extends APIResource {
   /**
-   * Create an assistant file by attaching a
-   * [File](https://platform.openai.com/docs/api-reference/files) to an
-   * [assistant](https://platform.openai.com/docs/api-reference/assistants).
+   * Creates and executes a batch from an uploaded file of requests
    */
-  create(assistantId, body, options) {
-    return this._client.post(`/assistants/${assistantId}/files`, {
-      body,
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
-    });
+  create(body, options) {
+    return this._client.post("/batches", { body, ...options });
   }
   /**
-   * Retrieves an AssistantFile.
+   * Retrieves a batch.
    */
-  retrieve(assistantId, fileId, options) {
-    return this._client.get(`/assistants/${assistantId}/files/${fileId}`, {
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
-    });
+  retrieve(batchId, options) {
+    return this._client.get(`/batches/${batchId}`, options);
   }
-  list(assistantId, query = {}, options) {
+  list(query = {}, options) {
     if (isRequestOptions(query)) {
-      return this.list(assistantId, {}, query);
+      return this.list({}, query);
     }
-    return this._client.getAPIList(`/assistants/${assistantId}/files`, AssistantFilesPage, {
-      query,
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
-    });
+    return this._client.getAPIList("/batches", BatchesPage, { query, ...options });
   }
   /**
-   * Delete an assistant file.
+   * Cancels an in-progress batch. The batch will be in status `cancelling` for up to
+   * 10 minutes, before changing to `cancelled`, where it will have partial results
+   * (if any) available in the output file.
    */
-  del(assistantId, fileId, options) {
-    return this._client.delete(`/assistants/${assistantId}/files/${fileId}`, {
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
-    });
+  cancel(batchId, options) {
+    return this._client.post(`/batches/${batchId}/cancel`, options);
   }
 };
-var AssistantFilesPage = class extends CursorPage {
+var BatchesPage = class extends CursorPage {
 };
-(function(Files4) {
-  Files4.AssistantFilesPage = AssistantFilesPage;
-})(Files || (Files = {}));
+(function(Batches2) {
+  Batches2.BatchesPage = BatchesPage;
+})(Batches || (Batches = {}));
 
-// node_modules/openai/resources/beta/assistants/assistants.mjs
+// node_modules/openai/resources/beta/assistants.mjs
 var Assistants = class extends APIResource {
-  constructor() {
-    super(...arguments);
-    this.files = new Files(this._client);
-  }
   /**
    * Create an assistant with a model and instructions.
    */
@@ -2060,7 +1619,7 @@ var Assistants = class extends APIResource {
     return this._client.post("/assistants", {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -2069,7 +1628,7 @@ var Assistants = class extends APIResource {
   retrieve(assistantId, options) {
     return this._client.get(`/assistants/${assistantId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -2079,7 +1638,7 @@ var Assistants = class extends APIResource {
     return this._client.post(`/assistants/${assistantId}`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   list(query = {}, options) {
@@ -2089,7 +1648,7 @@ var Assistants = class extends APIResource {
     return this._client.getAPIList("/assistants", AssistantsPage, {
       query,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -2098,7 +1657,7 @@ var Assistants = class extends APIResource {
   del(assistantId, options) {
     return this._client.delete(`/assistants/${assistantId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
 };
@@ -2106,8 +1665,6 @@ var AssistantsPage = class extends CursorPage {
 };
 (function(Assistants2) {
   Assistants2.AssistantsPage = AssistantsPage;
-  Assistants2.Files = Files;
-  Assistants2.AssistantFilesPage = AssistantFilesPage;
 })(Assistants || (Assistants = {}));
 
 // node_modules/openai/lib/RunnableFunction.mjs
@@ -2589,7 +2146,12 @@ _AbstractChatCompletionRunner_connectedPromise = /* @__PURE__ */ new WeakMap(), 
   while (i-- > 0) {
     const message = this.messages[i];
     if (isAssistantMessage(message)) {
-      return { ...message, content: (_a2 = message.content) != null ? _a2 : null };
+      const { function_call, ...rest } = message;
+      const ret = { ...rest, content: (_a2 = message.content) != null ? _a2 : null };
+      if (function_call) {
+        ret.function_call = function_call;
+      }
+      return ret;
     }
   }
   throw new OpenAIError("stream ended without producing a ChatCompletionMessage with role=assistant");
@@ -2867,7 +2429,7 @@ var ChatCompletionStream = class extends AbstractChatCompletionRunner {
     this.on("chunk", (chunk) => {
       const reader = readQueue.shift();
       if (reader) {
-        reader(chunk);
+        reader.resolve(chunk);
       } else {
         pushQueue.push(chunk);
       }
@@ -2875,7 +2437,21 @@ var ChatCompletionStream = class extends AbstractChatCompletionRunner {
     this.on("end", () => {
       done = true;
       for (const reader of readQueue) {
-        reader(void 0);
+        reader.resolve(void 0);
+      }
+      readQueue.length = 0;
+    });
+    this.on("abort", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
+      }
+      readQueue.length = 0;
+    });
+    this.on("error", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
       }
       readQueue.length = 0;
     });
@@ -2885,10 +2461,14 @@ var ChatCompletionStream = class extends AbstractChatCompletionRunner {
           if (done) {
             return { value: void 0, done: true };
           }
-          return new Promise((resolve) => readQueue.push(resolve)).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
+          return new Promise((resolve, reject) => readQueue.push({ resolve, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
         }
         const chunk = pushQueue.shift();
         return { value: chunk, done: false };
+      },
+      return: async () => {
+        this.abort();
+        return { value: void 0, done: true };
       }
     };
   }
@@ -3032,40 +2612,774 @@ var Chat2 = class extends APIResource {
   Chat3.Completions = Completions2;
 })(Chat2 || (Chat2 = {}));
 
-// node_modules/openai/resources/beta/threads/messages/files.mjs
-var Files2 = class extends APIResource {
+// node_modules/openai/lib/AbstractAssistantStreamRunner.mjs
+var __classPrivateFieldSet4 = function(receiver, state, value, kind2, f) {
+  if (kind2 === "m")
+    throw new TypeError("Private method is not writable");
+  if (kind2 === "a" && !f)
+    throw new TypeError("Private accessor was defined without a setter");
+  if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+    throw new TypeError("Cannot write private member to an object whose class did not declare it");
+  return kind2 === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+};
+var __classPrivateFieldGet4 = function(receiver, state, kind2, f) {
+  if (kind2 === "a" && !f)
+    throw new TypeError("Private accessor was defined without a getter");
+  if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+    throw new TypeError("Cannot read private member from an object whose class did not declare it");
+  return kind2 === "m" ? f : kind2 === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var _AbstractAssistantStreamRunner_connectedPromise;
+var _AbstractAssistantStreamRunner_resolveConnectedPromise;
+var _AbstractAssistantStreamRunner_rejectConnectedPromise;
+var _AbstractAssistantStreamRunner_endPromise;
+var _AbstractAssistantStreamRunner_resolveEndPromise;
+var _AbstractAssistantStreamRunner_rejectEndPromise;
+var _AbstractAssistantStreamRunner_listeners;
+var _AbstractAssistantStreamRunner_ended;
+var _AbstractAssistantStreamRunner_errored;
+var _AbstractAssistantStreamRunner_aborted;
+var _AbstractAssistantStreamRunner_catchingPromiseCreated;
+var _AbstractAssistantStreamRunner_handleError;
+var AbstractAssistantStreamRunner = class {
+  constructor() {
+    this.controller = new AbortController();
+    _AbstractAssistantStreamRunner_connectedPromise.set(this, void 0);
+    _AbstractAssistantStreamRunner_resolveConnectedPromise.set(this, () => {
+    });
+    _AbstractAssistantStreamRunner_rejectConnectedPromise.set(this, () => {
+    });
+    _AbstractAssistantStreamRunner_endPromise.set(this, void 0);
+    _AbstractAssistantStreamRunner_resolveEndPromise.set(this, () => {
+    });
+    _AbstractAssistantStreamRunner_rejectEndPromise.set(this, () => {
+    });
+    _AbstractAssistantStreamRunner_listeners.set(this, {});
+    _AbstractAssistantStreamRunner_ended.set(this, false);
+    _AbstractAssistantStreamRunner_errored.set(this, false);
+    _AbstractAssistantStreamRunner_aborted.set(this, false);
+    _AbstractAssistantStreamRunner_catchingPromiseCreated.set(this, false);
+    _AbstractAssistantStreamRunner_handleError.set(this, (error) => {
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_errored, true, "f");
+      if (error instanceof Error && error.name === "AbortError") {
+        error = new APIUserAbortError();
+      }
+      if (error instanceof APIUserAbortError) {
+        __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_aborted, true, "f");
+        return this._emit("abort", error);
+      }
+      if (error instanceof OpenAIError) {
+        return this._emit("error", error);
+      }
+      if (error instanceof Error) {
+        const openAIError = new OpenAIError(error.message);
+        openAIError.cause = error;
+        return this._emit("error", openAIError);
+      }
+      return this._emit("error", new OpenAIError(String(error)));
+    });
+    __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_connectedPromise, new Promise((resolve, reject) => {
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_resolveConnectedPromise, resolve, "f");
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_rejectConnectedPromise, reject, "f");
+    }), "f");
+    __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_endPromise, new Promise((resolve, reject) => {
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_resolveEndPromise, resolve, "f");
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_rejectEndPromise, reject, "f");
+    }), "f");
+    __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_connectedPromise, "f").catch(() => {
+    });
+    __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_endPromise, "f").catch(() => {
+    });
+  }
+  _run(executor) {
+    setTimeout(() => {
+      executor().then(() => {
+        this._emit("end");
+      }, __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_handleError, "f"));
+    }, 0);
+  }
+  _addRun(run) {
+    return run;
+  }
+  _connected() {
+    if (this.ended)
+      return;
+    __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_resolveConnectedPromise, "f").call(this);
+    this._emit("connect");
+  }
+  get ended() {
+    return __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_ended, "f");
+  }
+  get errored() {
+    return __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_errored, "f");
+  }
+  get aborted() {
+    return __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_aborted, "f");
+  }
+  abort() {
+    this.controller.abort();
+  }
   /**
-   * Retrieves a message file.
+   * Adds the listener function to the end of the listeners array for the event.
+   * No checks are made to see if the listener has already been added. Multiple calls passing
+   * the same combination of event and listener will result in the listener being added, and
+   * called, multiple times.
+   * @returns this ChatCompletionStream, so that calls can be chained
    */
-  retrieve(threadId, messageId, fileId, options) {
-    return this._client.get(`/threads/${threadId}/messages/${messageId}/files/${fileId}`, {
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+  on(event, listener) {
+    const listeners = __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event] || (__classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event] = []);
+    listeners.push({ listener });
+    return this;
+  }
+  /**
+   * Removes the specified listener from the listener array for the event.
+   * off() will remove, at most, one instance of a listener from the listener array. If any single
+   * listener has been added multiple times to the listener array for the specified event, then
+   * off() must be called multiple times to remove each instance.
+   * @returns this ChatCompletionStream, so that calls can be chained
+   */
+  off(event, listener) {
+    const listeners = __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event];
+    if (!listeners)
+      return this;
+    const index = listeners.findIndex((l) => l.listener === listener);
+    if (index >= 0)
+      listeners.splice(index, 1);
+    return this;
+  }
+  /**
+   * Adds a one-time listener function for the event. The next time the event is triggered,
+   * this listener is removed and then invoked.
+   * @returns this ChatCompletionStream, so that calls can be chained
+   */
+  once(event, listener) {
+    const listeners = __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event] || (__classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event] = []);
+    listeners.push({ listener, once: true });
+    return this;
+  }
+  /**
+   * This is similar to `.once()`, but returns a Promise that resolves the next time
+   * the event is triggered, instead of calling a listener callback.
+   * @returns a Promise that resolves the next time given event is triggered,
+   * or rejects if an error is emitted.  (If you request the 'error' event,
+   * returns a promise that resolves with the error).
+   *
+   * Example:
+   *
+   *   const message = await stream.emitted('message') // rejects if the stream errors
+   */
+  emitted(event) {
+    return new Promise((resolve, reject) => {
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_catchingPromiseCreated, true, "f");
+      if (event !== "error")
+        this.once("error", reject);
+      this.once(event, resolve);
     });
   }
-  list(threadId, messageId, query = {}, options) {
-    if (isRequestOptions(query)) {
-      return this.list(threadId, messageId, {}, query);
+  async done() {
+    __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_catchingPromiseCreated, true, "f");
+    await __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_endPromise, "f");
+  }
+  _emit(event, ...args) {
+    if (__classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_ended, "f")) {
+      return;
     }
-    return this._client.getAPIList(`/threads/${threadId}/messages/${messageId}/files`, MessageFilesPage, {
-      query,
-      ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
-    });
+    if (event === "end") {
+      __classPrivateFieldSet4(this, _AbstractAssistantStreamRunner_ended, true, "f");
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_resolveEndPromise, "f").call(this);
+    }
+    const listeners = __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event];
+    if (listeners) {
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_listeners, "f")[event] = listeners.filter((l) => !l.once);
+      listeners.forEach(({ listener }) => listener(...args));
+    }
+    if (event === "abort") {
+      const error = args[0];
+      if (!__classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_catchingPromiseCreated, "f") && !(listeners == null ? void 0 : listeners.length)) {
+        Promise.reject(error);
+      }
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_rejectConnectedPromise, "f").call(this, error);
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_rejectEndPromise, "f").call(this, error);
+      this._emit("end");
+      return;
+    }
+    if (event === "error") {
+      const error = args[0];
+      if (!__classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_catchingPromiseCreated, "f") && !(listeners == null ? void 0 : listeners.length)) {
+        Promise.reject(error);
+      }
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_rejectConnectedPromise, "f").call(this, error);
+      __classPrivateFieldGet4(this, _AbstractAssistantStreamRunner_rejectEndPromise, "f").call(this, error);
+      this._emit("end");
+    }
+  }
+  async _threadAssistantStream(body, thread, options) {
+    return await this._createThreadAssistantStream(thread, body, options);
+  }
+  async _runAssistantStream(threadId, runs, params, options) {
+    return await this._createAssistantStream(runs, threadId, params, options);
+  }
+  async _runToolAssistantStream(threadId, runId, runs, params, options) {
+    return await this._createToolAssistantStream(runs, threadId, runId, params, options);
+  }
+  async _createThreadAssistantStream(thread, body, options) {
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const runResult = await thread.createAndRun({ ...body, stream: false }, { ...options, signal: this.controller.signal });
+    this._connected();
+    return this._addRun(runResult);
+  }
+  async _createToolAssistantStream(run, threadId, runId, params, options) {
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const runResult = await run.submitToolOutputs(threadId, runId, { ...params, stream: false }, { ...options, signal: this.controller.signal });
+    this._connected();
+    return this._addRun(runResult);
+  }
+  async _createAssistantStream(run, threadId, params, options) {
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const runResult = await run.create(threadId, { ...params, stream: false }, { ...options, signal: this.controller.signal });
+    this._connected();
+    return this._addRun(runResult);
   }
 };
-var MessageFilesPage = class extends CursorPage {
-};
-(function(Files4) {
-  Files4.MessageFilesPage = MessageFilesPage;
-})(Files2 || (Files2 = {}));
+_AbstractAssistantStreamRunner_connectedPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_resolveConnectedPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_rejectConnectedPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_endPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_resolveEndPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_rejectEndPromise = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_listeners = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_ended = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_errored = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_aborted = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_catchingPromiseCreated = /* @__PURE__ */ new WeakMap(), _AbstractAssistantStreamRunner_handleError = /* @__PURE__ */ new WeakMap();
 
-// node_modules/openai/resources/beta/threads/messages/messages.mjs
-var Messages = class extends APIResource {
+// node_modules/openai/lib/AssistantStream.mjs
+var __classPrivateFieldGet5 = function(receiver, state, kind2, f) {
+  if (kind2 === "a" && !f)
+    throw new TypeError("Private accessor was defined without a getter");
+  if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+    throw new TypeError("Cannot read private member from an object whose class did not declare it");
+  return kind2 === "m" ? f : kind2 === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var __classPrivateFieldSet5 = function(receiver, state, value, kind2, f) {
+  if (kind2 === "m")
+    throw new TypeError("Private method is not writable");
+  if (kind2 === "a" && !f)
+    throw new TypeError("Private accessor was defined without a setter");
+  if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver))
+    throw new TypeError("Cannot write private member to an object whose class did not declare it");
+  return kind2 === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+};
+var _AssistantStream_instances;
+var _AssistantStream_events;
+var _AssistantStream_runStepSnapshots;
+var _AssistantStream_messageSnapshots;
+var _AssistantStream_messageSnapshot;
+var _AssistantStream_finalRun;
+var _AssistantStream_currentContentIndex;
+var _AssistantStream_currentContent;
+var _AssistantStream_currentToolCallIndex;
+var _AssistantStream_currentToolCall;
+var _AssistantStream_currentEvent;
+var _AssistantStream_currentRunSnapshot;
+var _AssistantStream_currentRunStepSnapshot;
+var _AssistantStream_addEvent;
+var _AssistantStream_endRequest;
+var _AssistantStream_handleMessage;
+var _AssistantStream_handleRunStep;
+var _AssistantStream_handleEvent;
+var _AssistantStream_accumulateRunStep;
+var _AssistantStream_accumulateMessage;
+var _AssistantStream_accumulateContent;
+var _AssistantStream_handleRun;
+var AssistantStream = class extends AbstractAssistantStreamRunner {
   constructor() {
     super(...arguments);
-    this.files = new Files2(this._client);
+    _AssistantStream_instances.add(this);
+    _AssistantStream_events.set(this, []);
+    _AssistantStream_runStepSnapshots.set(this, {});
+    _AssistantStream_messageSnapshots.set(this, {});
+    _AssistantStream_messageSnapshot.set(this, void 0);
+    _AssistantStream_finalRun.set(this, void 0);
+    _AssistantStream_currentContentIndex.set(this, void 0);
+    _AssistantStream_currentContent.set(this, void 0);
+    _AssistantStream_currentToolCallIndex.set(this, void 0);
+    _AssistantStream_currentToolCall.set(this, void 0);
+    _AssistantStream_currentEvent.set(this, void 0);
+    _AssistantStream_currentRunSnapshot.set(this, void 0);
+    _AssistantStream_currentRunStepSnapshot.set(this, void 0);
   }
+  [(_AssistantStream_events = /* @__PURE__ */ new WeakMap(), _AssistantStream_runStepSnapshots = /* @__PURE__ */ new WeakMap(), _AssistantStream_messageSnapshots = /* @__PURE__ */ new WeakMap(), _AssistantStream_messageSnapshot = /* @__PURE__ */ new WeakMap(), _AssistantStream_finalRun = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentContentIndex = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentContent = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentToolCallIndex = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentToolCall = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentEvent = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentRunSnapshot = /* @__PURE__ */ new WeakMap(), _AssistantStream_currentRunStepSnapshot = /* @__PURE__ */ new WeakMap(), _AssistantStream_instances = /* @__PURE__ */ new WeakSet(), Symbol.asyncIterator)]() {
+    const pushQueue = [];
+    const readQueue = [];
+    let done = false;
+    this.on("event", (event) => {
+      const reader = readQueue.shift();
+      if (reader) {
+        reader.resolve(event);
+      } else {
+        pushQueue.push(event);
+      }
+    });
+    this.on("end", () => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.resolve(void 0);
+      }
+      readQueue.length = 0;
+    });
+    this.on("abort", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
+      }
+      readQueue.length = 0;
+    });
+    this.on("error", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
+      }
+      readQueue.length = 0;
+    });
+    return {
+      next: async () => {
+        if (!pushQueue.length) {
+          if (done) {
+            return { value: void 0, done: true };
+          }
+          return new Promise((resolve, reject) => readQueue.push({ resolve, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
+        }
+        const chunk = pushQueue.shift();
+        return { value: chunk, done: false };
+      },
+      return: async () => {
+        this.abort();
+        return { value: void 0, done: true };
+      }
+    };
+  }
+  static fromReadableStream(stream) {
+    const runner = new AssistantStream();
+    runner._run(() => runner._fromReadableStream(stream));
+    return runner;
+  }
+  async _fromReadableStream(readableStream, options) {
+    var _a2;
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    this._connected();
+    const stream = Stream.fromReadableStream(readableStream, this.controller);
+    for await (const event of stream) {
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_addEvent).call(this, event);
+    }
+    if ((_a2 = stream.controller.signal) == null ? void 0 : _a2.aborted) {
+      throw new APIUserAbortError();
+    }
+    return this._addRun(__classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_endRequest).call(this));
+  }
+  toReadableStream() {
+    const stream = new Stream(this[Symbol.asyncIterator].bind(this), this.controller);
+    return stream.toReadableStream();
+  }
+  static createToolAssistantStream(threadId, runId, runs, body, options) {
+    const runner = new AssistantStream();
+    runner._run(() => runner._runToolAssistantStream(threadId, runId, runs, body, {
+      ...options,
+      headers: { ...options == null ? void 0 : options.headers, "X-Stainless-Helper-Method": "stream" }
+    }));
+    return runner;
+  }
+  async _createToolAssistantStream(run, threadId, runId, params, options) {
+    var _a2;
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const body = { ...params, stream: true };
+    const stream = await run.submitToolOutputs(threadId, runId, body, {
+      ...options,
+      signal: this.controller.signal
+    });
+    this._connected();
+    for await (const event of stream) {
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_addEvent).call(this, event);
+    }
+    if ((_a2 = stream.controller.signal) == null ? void 0 : _a2.aborted) {
+      throw new APIUserAbortError();
+    }
+    return this._addRun(__classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_endRequest).call(this));
+  }
+  static createThreadAssistantStream(body, thread, options) {
+    const runner = new AssistantStream();
+    runner._run(() => runner._threadAssistantStream(body, thread, {
+      ...options,
+      headers: { ...options == null ? void 0 : options.headers, "X-Stainless-Helper-Method": "stream" }
+    }));
+    return runner;
+  }
+  static createAssistantStream(threadId, runs, params, options) {
+    const runner = new AssistantStream();
+    runner._run(() => runner._runAssistantStream(threadId, runs, params, {
+      ...options,
+      headers: { ...options == null ? void 0 : options.headers, "X-Stainless-Helper-Method": "stream" }
+    }));
+    return runner;
+  }
+  currentEvent() {
+    return __classPrivateFieldGet5(this, _AssistantStream_currentEvent, "f");
+  }
+  currentRun() {
+    return __classPrivateFieldGet5(this, _AssistantStream_currentRunSnapshot, "f");
+  }
+  currentMessageSnapshot() {
+    return __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f");
+  }
+  currentRunStepSnapshot() {
+    return __classPrivateFieldGet5(this, _AssistantStream_currentRunStepSnapshot, "f");
+  }
+  async finalRunSteps() {
+    await this.done();
+    return Object.values(__classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f"));
+  }
+  async finalMessages() {
+    await this.done();
+    return Object.values(__classPrivateFieldGet5(this, _AssistantStream_messageSnapshots, "f"));
+  }
+  async finalRun() {
+    await this.done();
+    if (!__classPrivateFieldGet5(this, _AssistantStream_finalRun, "f"))
+      throw Error("Final run was not received.");
+    return __classPrivateFieldGet5(this, _AssistantStream_finalRun, "f");
+  }
+  async _createThreadAssistantStream(thread, params, options) {
+    var _a2;
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const body = { ...params, stream: true };
+    const stream = await thread.createAndRun(body, { ...options, signal: this.controller.signal });
+    this._connected();
+    for await (const event of stream) {
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_addEvent).call(this, event);
+    }
+    if ((_a2 = stream.controller.signal) == null ? void 0 : _a2.aborted) {
+      throw new APIUserAbortError();
+    }
+    return this._addRun(__classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_endRequest).call(this));
+  }
+  async _createAssistantStream(run, threadId, params, options) {
+    var _a2;
+    const signal = options == null ? void 0 : options.signal;
+    if (signal) {
+      if (signal.aborted)
+        this.controller.abort();
+      signal.addEventListener("abort", () => this.controller.abort());
+    }
+    const body = { ...params, stream: true };
+    const stream = await run.create(threadId, body, { ...options, signal: this.controller.signal });
+    this._connected();
+    for await (const event of stream) {
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_addEvent).call(this, event);
+    }
+    if ((_a2 = stream.controller.signal) == null ? void 0 : _a2.aborted) {
+      throw new APIUserAbortError();
+    }
+    return this._addRun(__classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_endRequest).call(this));
+  }
+  static accumulateDelta(acc, delta) {
+    for (const [key, deltaValue] of Object.entries(delta)) {
+      if (!acc.hasOwnProperty(key)) {
+        acc[key] = deltaValue;
+        continue;
+      }
+      let accValue = acc[key];
+      if (accValue === null || accValue === void 0) {
+        acc[key] = deltaValue;
+        continue;
+      }
+      if (key === "index" || key === "type") {
+        acc[key] = deltaValue;
+        continue;
+      }
+      if (typeof accValue === "string" && typeof deltaValue === "string") {
+        accValue += deltaValue;
+      } else if (typeof accValue === "number" && typeof deltaValue === "number") {
+        accValue += deltaValue;
+      } else if (isObj(accValue) && isObj(deltaValue)) {
+        accValue = this.accumulateDelta(accValue, deltaValue);
+      } else if (Array.isArray(accValue) && Array.isArray(deltaValue)) {
+        if (accValue.every((x) => typeof x === "string" || typeof x === "number")) {
+          accValue.push(...deltaValue);
+          continue;
+        }
+      } else {
+        throw Error(`Unhandled record type: ${key}, deltaValue: ${deltaValue}, accValue: ${accValue}`);
+      }
+      acc[key] = accValue;
+    }
+    return acc;
+  }
+};
+_AssistantStream_addEvent = function _AssistantStream_addEvent2(event) {
+  if (this.ended)
+    return;
+  __classPrivateFieldSet5(this, _AssistantStream_currentEvent, event, "f");
+  __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_handleEvent).call(this, event);
+  switch (event.event) {
+    case "thread.created":
+      break;
+    case "thread.run.created":
+    case "thread.run.queued":
+    case "thread.run.in_progress":
+    case "thread.run.requires_action":
+    case "thread.run.completed":
+    case "thread.run.failed":
+    case "thread.run.cancelling":
+    case "thread.run.cancelled":
+    case "thread.run.expired":
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_handleRun).call(this, event);
+      break;
+    case "thread.run.step.created":
+    case "thread.run.step.in_progress":
+    case "thread.run.step.delta":
+    case "thread.run.step.completed":
+    case "thread.run.step.failed":
+    case "thread.run.step.cancelled":
+    case "thread.run.step.expired":
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_handleRunStep).call(this, event);
+      break;
+    case "thread.message.created":
+    case "thread.message.in_progress":
+    case "thread.message.delta":
+    case "thread.message.completed":
+    case "thread.message.incomplete":
+      __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_handleMessage).call(this, event);
+      break;
+    case "error":
+      throw new Error("Encountered an error event in event processing - errors should be processed earlier");
+  }
+}, _AssistantStream_endRequest = function _AssistantStream_endRequest2() {
+  if (this.ended) {
+    throw new OpenAIError(`stream has ended, this shouldn't happen`);
+  }
+  if (!__classPrivateFieldGet5(this, _AssistantStream_finalRun, "f"))
+    throw Error("Final run has not been received");
+  return __classPrivateFieldGet5(this, _AssistantStream_finalRun, "f");
+}, _AssistantStream_handleMessage = function _AssistantStream_handleMessage2(event) {
+  const [accumulatedMessage, newContent] = __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_accumulateMessage).call(this, event, __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f"));
+  __classPrivateFieldSet5(this, _AssistantStream_messageSnapshot, accumulatedMessage, "f");
+  __classPrivateFieldGet5(this, _AssistantStream_messageSnapshots, "f")[accumulatedMessage.id] = accumulatedMessage;
+  for (const content of newContent) {
+    const snapshotContent = accumulatedMessage.content[content.index];
+    if ((snapshotContent == null ? void 0 : snapshotContent.type) == "text") {
+      this._emit("textCreated", snapshotContent.text);
+    }
+  }
+  switch (event.event) {
+    case "thread.message.created":
+      this._emit("messageCreated", event.data);
+      break;
+    case "thread.message.in_progress":
+      break;
+    case "thread.message.delta":
+      this._emit("messageDelta", event.data.delta, accumulatedMessage);
+      if (event.data.delta.content) {
+        for (const content of event.data.delta.content) {
+          if (content.type == "text" && content.text) {
+            let textDelta = content.text;
+            let snapshot = accumulatedMessage.content[content.index];
+            if (snapshot && snapshot.type == "text") {
+              this._emit("textDelta", textDelta, snapshot.text);
+            } else {
+              throw Error("The snapshot associated with this text delta is not text or missing");
+            }
+          }
+          if (content.index != __classPrivateFieldGet5(this, _AssistantStream_currentContentIndex, "f")) {
+            if (__classPrivateFieldGet5(this, _AssistantStream_currentContent, "f")) {
+              switch (__classPrivateFieldGet5(this, _AssistantStream_currentContent, "f").type) {
+                case "text":
+                  this._emit("textDone", __classPrivateFieldGet5(this, _AssistantStream_currentContent, "f").text, __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f"));
+                  break;
+                case "image_file":
+                  this._emit("imageFileDone", __classPrivateFieldGet5(this, _AssistantStream_currentContent, "f").image_file, __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f"));
+                  break;
+              }
+            }
+            __classPrivateFieldSet5(this, _AssistantStream_currentContentIndex, content.index, "f");
+          }
+          __classPrivateFieldSet5(this, _AssistantStream_currentContent, accumulatedMessage.content[content.index], "f");
+        }
+      }
+      break;
+    case "thread.message.completed":
+    case "thread.message.incomplete":
+      if (__classPrivateFieldGet5(this, _AssistantStream_currentContentIndex, "f") !== void 0) {
+        const currentContent = event.data.content[__classPrivateFieldGet5(this, _AssistantStream_currentContentIndex, "f")];
+        if (currentContent) {
+          switch (currentContent.type) {
+            case "image_file":
+              this._emit("imageFileDone", currentContent.image_file, __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f"));
+              break;
+            case "text":
+              this._emit("textDone", currentContent.text, __classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f"));
+              break;
+          }
+        }
+      }
+      if (__classPrivateFieldGet5(this, _AssistantStream_messageSnapshot, "f")) {
+        this._emit("messageDone", event.data);
+      }
+      __classPrivateFieldSet5(this, _AssistantStream_messageSnapshot, void 0, "f");
+  }
+}, _AssistantStream_handleRunStep = function _AssistantStream_handleRunStep2(event) {
+  const accumulatedRunStep = __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_accumulateRunStep).call(this, event);
+  __classPrivateFieldSet5(this, _AssistantStream_currentRunStepSnapshot, accumulatedRunStep, "f");
+  switch (event.event) {
+    case "thread.run.step.created":
+      this._emit("runStepCreated", event.data);
+      break;
+    case "thread.run.step.delta":
+      const delta = event.data.delta;
+      if (delta.step_details && delta.step_details.type == "tool_calls" && delta.step_details.tool_calls && accumulatedRunStep.step_details.type == "tool_calls") {
+        for (const toolCall of delta.step_details.tool_calls) {
+          if (toolCall.index == __classPrivateFieldGet5(this, _AssistantStream_currentToolCallIndex, "f")) {
+            this._emit("toolCallDelta", toolCall, accumulatedRunStep.step_details.tool_calls[toolCall.index]);
+          } else {
+            if (__classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f")) {
+              this._emit("toolCallDone", __classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f"));
+            }
+            __classPrivateFieldSet5(this, _AssistantStream_currentToolCallIndex, toolCall.index, "f");
+            __classPrivateFieldSet5(this, _AssistantStream_currentToolCall, accumulatedRunStep.step_details.tool_calls[toolCall.index], "f");
+            if (__classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f"))
+              this._emit("toolCallCreated", __classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f"));
+          }
+        }
+      }
+      this._emit("runStepDelta", event.data.delta, accumulatedRunStep);
+      break;
+    case "thread.run.step.completed":
+    case "thread.run.step.failed":
+    case "thread.run.step.cancelled":
+    case "thread.run.step.expired":
+      __classPrivateFieldSet5(this, _AssistantStream_currentRunStepSnapshot, void 0, "f");
+      const details = event.data.step_details;
+      if (details.type == "tool_calls") {
+        if (__classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f")) {
+          this._emit("toolCallDone", __classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f"));
+          __classPrivateFieldSet5(this, _AssistantStream_currentToolCall, void 0, "f");
+        }
+      }
+      this._emit("runStepDone", event.data, accumulatedRunStep);
+      break;
+    case "thread.run.step.in_progress":
+      break;
+  }
+}, _AssistantStream_handleEvent = function _AssistantStream_handleEvent2(event) {
+  __classPrivateFieldGet5(this, _AssistantStream_events, "f").push(event);
+  this._emit("event", event);
+}, _AssistantStream_accumulateRunStep = function _AssistantStream_accumulateRunStep2(event) {
+  switch (event.event) {
+    case "thread.run.step.created":
+      __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id] = event.data;
+      return event.data;
+    case "thread.run.step.delta":
+      let snapshot = __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
+      if (!snapshot) {
+        throw Error("Received a RunStepDelta before creation of a snapshot");
+      }
+      let data = event.data;
+      if (data.delta) {
+        const accumulated = AssistantStream.accumulateDelta(snapshot, data.delta);
+        __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id] = accumulated;
+      }
+      return __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
+    case "thread.run.step.completed":
+    case "thread.run.step.failed":
+    case "thread.run.step.cancelled":
+    case "thread.run.step.expired":
+    case "thread.run.step.in_progress":
+      __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id] = event.data;
+      break;
+  }
+  if (__classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id])
+    return __classPrivateFieldGet5(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
+  throw new Error("No snapshot available");
+}, _AssistantStream_accumulateMessage = function _AssistantStream_accumulateMessage2(event, snapshot) {
+  let newContent = [];
+  switch (event.event) {
+    case "thread.message.created":
+      return [event.data, newContent];
+    case "thread.message.delta":
+      if (!snapshot) {
+        throw Error("Received a delta with no existing snapshot (there should be one from message creation)");
+      }
+      let data = event.data;
+      if (data.delta.content) {
+        for (const contentElement of data.delta.content) {
+          if (contentElement.index in snapshot.content) {
+            let currentContent = snapshot.content[contentElement.index];
+            snapshot.content[contentElement.index] = __classPrivateFieldGet5(this, _AssistantStream_instances, "m", _AssistantStream_accumulateContent).call(this, contentElement, currentContent);
+          } else {
+            snapshot.content[contentElement.index] = contentElement;
+            newContent.push(contentElement);
+          }
+        }
+      }
+      return [snapshot, newContent];
+    case "thread.message.in_progress":
+    case "thread.message.completed":
+    case "thread.message.incomplete":
+      if (snapshot) {
+        return [snapshot, newContent];
+      } else {
+        throw Error("Received thread message event with no existing snapshot");
+      }
+  }
+  throw Error("Tried to accumulate a non-message event");
+}, _AssistantStream_accumulateContent = function _AssistantStream_accumulateContent2(contentElement, currentContent) {
+  return AssistantStream.accumulateDelta(currentContent, contentElement);
+}, _AssistantStream_handleRun = function _AssistantStream_handleRun2(event) {
+  __classPrivateFieldSet5(this, _AssistantStream_currentRunSnapshot, event.data, "f");
+  switch (event.event) {
+    case "thread.run.created":
+      break;
+    case "thread.run.queued":
+      break;
+    case "thread.run.in_progress":
+      break;
+    case "thread.run.requires_action":
+    case "thread.run.cancelled":
+    case "thread.run.failed":
+    case "thread.run.completed":
+    case "thread.run.expired":
+      __classPrivateFieldSet5(this, _AssistantStream_finalRun, event.data, "f");
+      if (__classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f")) {
+        this._emit("toolCallDone", __classPrivateFieldGet5(this, _AssistantStream_currentToolCall, "f"));
+        __classPrivateFieldSet5(this, _AssistantStream_currentToolCall, void 0, "f");
+      }
+      break;
+    case "thread.run.cancelling":
+      break;
+  }
+};
+
+// node_modules/openai/resources/beta/threads/messages.mjs
+var Messages = class extends APIResource {
   /**
    * Create a message.
    */
@@ -3073,7 +3387,7 @@ var Messages = class extends APIResource {
     return this._client.post(`/threads/${threadId}/messages`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3082,7 +3396,7 @@ var Messages = class extends APIResource {
   retrieve(threadId, messageId, options) {
     return this._client.get(`/threads/${threadId}/messages/${messageId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3092,26 +3406,33 @@ var Messages = class extends APIResource {
     return this._client.post(`/threads/${threadId}/messages/${messageId}`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   list(threadId, query = {}, options) {
     if (isRequestOptions(query)) {
       return this.list(threadId, {}, query);
     }
-    return this._client.getAPIList(`/threads/${threadId}/messages`, ThreadMessagesPage, {
+    return this._client.getAPIList(`/threads/${threadId}/messages`, MessagesPage, {
       query,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Deletes a message.
+   */
+  del(threadId, messageId, options) {
+    return this._client.delete(`/threads/${threadId}/messages/${messageId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
 };
-var ThreadMessagesPage = class extends CursorPage {
+var MessagesPage = class extends CursorPage {
 };
 (function(Messages2) {
-  Messages2.ThreadMessagesPage = ThreadMessagesPage;
-  Messages2.Files = Files2;
-  Messages2.MessageFilesPage = MessageFilesPage;
+  Messages2.MessagesPage = MessagesPage;
 })(Messages || (Messages = {}));
 
 // node_modules/openai/resources/beta/threads/runs/steps.mjs
@@ -3122,7 +3443,7 @@ var Steps = class extends APIResource {
   retrieve(threadId, runId, stepId, options) {
     return this._client.get(`/threads/${threadId}/runs/${runId}/steps/${stepId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   list(threadId, runId, query = {}, options) {
@@ -3132,7 +3453,7 @@ var Steps = class extends APIResource {
     return this._client.getAPIList(`/threads/${threadId}/runs/${runId}/steps`, RunStepsPage, {
       query,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
 };
@@ -3148,14 +3469,13 @@ var Runs = class extends APIResource {
     super(...arguments);
     this.steps = new Steps(this._client);
   }
-  /**
-   * Create a run.
-   */
   create(threadId, body, options) {
+    var _a2;
     return this._client.post(`/threads/${threadId}/runs`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers },
+      stream: (_a2 = body.stream) != null ? _a2 : false
     });
   }
   /**
@@ -3164,7 +3484,7 @@ var Runs = class extends APIResource {
   retrieve(threadId, runId, options) {
     return this._client.get(`/threads/${threadId}/runs/${runId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3174,7 +3494,7 @@ var Runs = class extends APIResource {
     return this._client.post(`/threads/${threadId}/runs/${runId}`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   list(threadId, query = {}, options) {
@@ -3184,7 +3504,7 @@ var Runs = class extends APIResource {
     return this._client.getAPIList(`/threads/${threadId}/runs`, RunsPage, {
       query,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3193,21 +3513,100 @@ var Runs = class extends APIResource {
   cancel(threadId, runId, options) {
     return this._client.post(`/threads/${threadId}/runs/${runId}/cancel`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
-   * When a run has the `status: "requires_action"` and `required_action.type` is
-   * `submit_tool_outputs`, this endpoint can be used to submit the outputs from the
-   * tool calls once they're all completed. All outputs must be submitted in a single
-   * request.
+   * A helper to create a run an poll for a terminal state. More information on Run
+   * lifecycles can be found here:
+   * https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
    */
+  async createAndPoll(threadId, body, options) {
+    const run = await this.create(threadId, body, options);
+    return await this.poll(threadId, run.id, options);
+  }
+  /**
+   * Create a Run stream
+   *
+   * @deprecated use `stream` instead
+   */
+  createAndStream(threadId, body, options) {
+    return AssistantStream.createAssistantStream(threadId, this._client.beta.threads.runs, body, options);
+  }
+  /**
+   * A helper to poll a run status until it reaches a terminal state. More
+   * information on Run lifecycles can be found here:
+   * https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+   */
+  async poll(threadId, runId, options) {
+    const headers = { ...options == null ? void 0 : options.headers, "X-Stainless-Poll-Helper": "true" };
+    if (options == null ? void 0 : options.pollIntervalMs) {
+      headers["X-Stainless-Custom-Poll-Interval"] = options.pollIntervalMs.toString();
+    }
+    while (true) {
+      const { data: run, response } = await this.retrieve(threadId, runId, {
+        ...options,
+        headers: { ...options == null ? void 0 : options.headers, ...headers }
+      }).withResponse();
+      switch (run.status) {
+        case "queued":
+        case "in_progress":
+        case "cancelling":
+          let sleepInterval = 5e3;
+          if (options == null ? void 0 : options.pollIntervalMs) {
+            sleepInterval = options.pollIntervalMs;
+          } else {
+            const headerInterval = response.headers.get("openai-poll-after-ms");
+            if (headerInterval) {
+              const headerIntervalMs = parseInt(headerInterval);
+              if (!isNaN(headerIntervalMs)) {
+                sleepInterval = headerIntervalMs;
+              }
+            }
+          }
+          await sleep(sleepInterval);
+          break;
+        case "requires_action":
+        case "incomplete":
+        case "cancelled":
+        case "completed":
+        case "failed":
+        case "expired":
+          return run;
+      }
+    }
+  }
+  /**
+   * Create a Run stream
+   */
+  stream(threadId, body, options) {
+    return AssistantStream.createAssistantStream(threadId, this._client.beta.threads.runs, body, options);
+  }
   submitToolOutputs(threadId, runId, body, options) {
+    var _a2;
     return this._client.post(`/threads/${threadId}/runs/${runId}/submit_tool_outputs`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers },
+      stream: (_a2 = body.stream) != null ? _a2 : false
     });
+  }
+  /**
+   * A helper to submit a tool output to a run and poll for a terminal run state.
+   * More information on Run lifecycles can be found here:
+   * https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+   */
+  async submitToolOutputsAndPoll(threadId, runId, body, options) {
+    const run = await this.submitToolOutputs(threadId, runId, body, options);
+    return await this.poll(threadId, run.id, options);
+  }
+  /**
+   * Submit the tool outputs from a previous run and stream the run to a terminal
+   * state. More information on Run lifecycles can be found here:
+   * https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+   */
+  submitToolOutputsStream(threadId, runId, body, options) {
+    return AssistantStream.createToolAssistantStream(threadId, runId, this._client.beta.threads.runs, body, options);
   }
 };
 var RunsPage = class extends CursorPage {
@@ -3232,7 +3631,7 @@ var Threads = class extends APIResource {
     return this._client.post("/threads", {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3241,7 +3640,7 @@ var Threads = class extends APIResource {
   retrieve(threadId, options) {
     return this._client.get(`/threads/${threadId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3251,7 +3650,7 @@ var Threads = class extends APIResource {
     return this._client.post(`/threads/${threadId}`, {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
   /**
@@ -3260,37 +3659,367 @@ var Threads = class extends APIResource {
   del(threadId, options) {
     return this._client.delete(`/threads/${threadId}`, {
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
     });
   }
-  /**
-   * Create a thread and run it in one request.
-   */
   createAndRun(body, options) {
+    var _a2;
     return this._client.post("/threads/runs", {
       body,
       ...options,
-      headers: { "OpenAI-Beta": "assistants=v1", ...options == null ? void 0 : options.headers }
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers },
+      stream: (_a2 = body.stream) != null ? _a2 : false
     });
+  }
+  /**
+   * A helper to create a thread, start a run and then poll for a terminal state.
+   * More information on Run lifecycles can be found here:
+   * https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps
+   */
+  async createAndRunPoll(body, options) {
+    const run = await this.createAndRun(body, options);
+    return await this.runs.poll(run.thread_id, run.id, options);
+  }
+  /**
+   * Create a thread and stream the run back
+   */
+  createAndRunStream(body, options) {
+    return AssistantStream.createThreadAssistantStream(body, this._client.beta.threads, options);
   }
 };
 (function(Threads2) {
   Threads2.Runs = Runs;
   Threads2.RunsPage = RunsPage;
   Threads2.Messages = Messages;
-  Threads2.ThreadMessagesPage = ThreadMessagesPage;
+  Threads2.MessagesPage = MessagesPage;
 })(Threads || (Threads = {}));
+
+// node_modules/openai/lib/Util.mjs
+var allSettledWithThrow = async (promises) => {
+  const results = await Promise.allSettled(promises);
+  const rejected = results.filter((result) => result.status === "rejected");
+  if (rejected.length) {
+    for (const result of rejected) {
+      console.error(result.reason);
+    }
+    throw new Error(`${rejected.length} promise(s) failed - see the above errors`);
+  }
+  const values = [];
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      values.push(result.value);
+    }
+  }
+  return values;
+};
+
+// node_modules/openai/resources/beta/vector-stores/files.mjs
+var Files = class extends APIResource {
+  /**
+   * Create a vector store file by attaching a
+   * [File](https://platform.openai.com/docs/api-reference/files) to a
+   * [vector store](https://platform.openai.com/docs/api-reference/vector-stores/object).
+   */
+  create(vectorStoreId, body, options) {
+    return this._client.post(`/vector_stores/${vectorStoreId}/files`, {
+      body,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Retrieves a vector store file.
+   */
+  retrieve(vectorStoreId, fileId, options) {
+    return this._client.get(`/vector_stores/${vectorStoreId}/files/${fileId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  list(vectorStoreId, query = {}, options) {
+    if (isRequestOptions(query)) {
+      return this.list(vectorStoreId, {}, query);
+    }
+    return this._client.getAPIList(`/vector_stores/${vectorStoreId}/files`, VectorStoreFilesPage, {
+      query,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Delete a vector store file. This will remove the file from the vector store but
+   * the file itself will not be deleted. To delete the file, use the
+   * [delete file](https://platform.openai.com/docs/api-reference/files/delete)
+   * endpoint.
+   */
+  del(vectorStoreId, fileId, options) {
+    return this._client.delete(`/vector_stores/${vectorStoreId}/files/${fileId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Attach a file to the given vector store and wait for it to be processed.
+   */
+  async createAndPoll(vectorStoreId, body, options) {
+    const file = await this.create(vectorStoreId, body, options);
+    return await this.poll(vectorStoreId, file.id, options);
+  }
+  /**
+   * Wait for the vector store file to finish processing.
+   *
+   * Note: this will return even if the file failed to process, you need to check
+   * file.last_error and file.status to handle these cases
+   */
+  async poll(vectorStoreId, fileId, options) {
+    const headers = { ...options == null ? void 0 : options.headers, "X-Stainless-Poll-Helper": "true" };
+    if (options == null ? void 0 : options.pollIntervalMs) {
+      headers["X-Stainless-Custom-Poll-Interval"] = options.pollIntervalMs.toString();
+    }
+    while (true) {
+      const fileResponse = await this.retrieve(vectorStoreId, fileId, {
+        ...options,
+        headers
+      }).withResponse();
+      const file = fileResponse.data;
+      switch (file.status) {
+        case "in_progress":
+          let sleepInterval = 5e3;
+          if (options == null ? void 0 : options.pollIntervalMs) {
+            sleepInterval = options.pollIntervalMs;
+          } else {
+            const headerInterval = fileResponse.response.headers.get("openai-poll-after-ms");
+            if (headerInterval) {
+              const headerIntervalMs = parseInt(headerInterval);
+              if (!isNaN(headerIntervalMs)) {
+                sleepInterval = headerIntervalMs;
+              }
+            }
+          }
+          await sleep(sleepInterval);
+          break;
+        case "failed":
+        case "completed":
+          return file;
+      }
+    }
+  }
+  /**
+   * Upload a file to the `files` API and then attach it to the given vector store.
+   *
+   * Note the file will be asynchronously processed (you can use the alternative
+   * polling helper method to wait for processing to complete).
+   */
+  async upload(vectorStoreId, file, options) {
+    const fileInfo = await this._client.files.create({ file, purpose: "assistants" }, options);
+    return this.create(vectorStoreId, { file_id: fileInfo.id }, options);
+  }
+  /**
+   * Add a file to a vector store and poll until processing is complete.
+   */
+  async uploadAndPoll(vectorStoreId, file, options) {
+    const fileInfo = await this.upload(vectorStoreId, file, options);
+    return await this.poll(vectorStoreId, fileInfo.id, options);
+  }
+};
+var VectorStoreFilesPage = class extends CursorPage {
+};
+(function(Files3) {
+  Files3.VectorStoreFilesPage = VectorStoreFilesPage;
+})(Files || (Files = {}));
+
+// node_modules/openai/resources/beta/vector-stores/file-batches.mjs
+var FileBatches = class extends APIResource {
+  /**
+   * Create a vector store file batch.
+   */
+  create(vectorStoreId, body, options) {
+    return this._client.post(`/vector_stores/${vectorStoreId}/file_batches`, {
+      body,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Retrieves a vector store file batch.
+   */
+  retrieve(vectorStoreId, batchId, options) {
+    return this._client.get(`/vector_stores/${vectorStoreId}/file_batches/${batchId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Cancel a vector store file batch. This attempts to cancel the processing of
+   * files in this batch as soon as possible.
+   */
+  cancel(vectorStoreId, batchId, options) {
+    return this._client.post(`/vector_stores/${vectorStoreId}/file_batches/${batchId}/cancel`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Create a vector store batch and poll until all files have been processed.
+   */
+  async createAndPoll(vectorStoreId, body, options) {
+    const batch = await this.create(vectorStoreId, body);
+    return await this.poll(vectorStoreId, batch.id, options);
+  }
+  listFiles(vectorStoreId, batchId, query = {}, options) {
+    if (isRequestOptions(query)) {
+      return this.listFiles(vectorStoreId, batchId, {}, query);
+    }
+    return this._client.getAPIList(`/vector_stores/${vectorStoreId}/file_batches/${batchId}/files`, VectorStoreFilesPage, { query, ...options, headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers } });
+  }
+  /**
+   * Wait for the given file batch to be processed.
+   *
+   * Note: this will return even if one of the files failed to process, you need to
+   * check batch.file_counts.failed_count to handle this case.
+   */
+  async poll(vectorStoreId, batchId, options) {
+    const headers = { ...options == null ? void 0 : options.headers, "X-Stainless-Poll-Helper": "true" };
+    if (options == null ? void 0 : options.pollIntervalMs) {
+      headers["X-Stainless-Custom-Poll-Interval"] = options.pollIntervalMs.toString();
+    }
+    while (true) {
+      const { data: batch, response } = await this.retrieve(vectorStoreId, batchId, {
+        ...options,
+        headers
+      }).withResponse();
+      switch (batch.status) {
+        case "in_progress":
+          let sleepInterval = 5e3;
+          if (options == null ? void 0 : options.pollIntervalMs) {
+            sleepInterval = options.pollIntervalMs;
+          } else {
+            const headerInterval = response.headers.get("openai-poll-after-ms");
+            if (headerInterval) {
+              const headerIntervalMs = parseInt(headerInterval);
+              if (!isNaN(headerIntervalMs)) {
+                sleepInterval = headerIntervalMs;
+              }
+            }
+          }
+          await sleep(sleepInterval);
+          break;
+        case "failed":
+        case "cancelled":
+        case "completed":
+          return batch;
+      }
+    }
+  }
+  /**
+   * Uploads the given files concurrently and then creates a vector store file batch.
+   *
+   * The concurrency limit is configurable using the `maxConcurrency` parameter.
+   */
+  async uploadAndPoll(vectorStoreId, { files, fileIds = [] }, options) {
+    var _a2;
+    if (files == null || files.length == 0) {
+      throw new Error(`No \`files\` provided to process. If you've already uploaded files you should use \`.createAndPoll()\` instead`);
+    }
+    const configuredConcurrency = (_a2 = options == null ? void 0 : options.maxConcurrency) != null ? _a2 : 5;
+    const concurrencyLimit = Math.min(configuredConcurrency, files.length);
+    const client = this._client;
+    const fileIterator = files.values();
+    const allFileIds = [...fileIds];
+    async function processFiles(iterator) {
+      for (let item of iterator) {
+        const fileObj = await client.files.create({ file: item, purpose: "assistants" }, options);
+        allFileIds.push(fileObj.id);
+      }
+    }
+    const workers = Array(concurrencyLimit).fill(fileIterator).map(processFiles);
+    await allSettledWithThrow(workers);
+    return await this.createAndPoll(vectorStoreId, {
+      file_ids: allFileIds
+    });
+  }
+};
+(function(FileBatches2) {
+})(FileBatches || (FileBatches = {}));
+
+// node_modules/openai/resources/beta/vector-stores/vector-stores.mjs
+var VectorStores = class extends APIResource {
+  constructor() {
+    super(...arguments);
+    this.files = new Files(this._client);
+    this.fileBatches = new FileBatches(this._client);
+  }
+  /**
+   * Create a vector store.
+   */
+  create(body, options) {
+    return this._client.post("/vector_stores", {
+      body,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Retrieves a vector store.
+   */
+  retrieve(vectorStoreId, options) {
+    return this._client.get(`/vector_stores/${vectorStoreId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Modifies a vector store.
+   */
+  update(vectorStoreId, body, options) {
+    return this._client.post(`/vector_stores/${vectorStoreId}`, {
+      body,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  list(query = {}, options) {
+    if (isRequestOptions(query)) {
+      return this.list({}, query);
+    }
+    return this._client.getAPIList("/vector_stores", VectorStoresPage, {
+      query,
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+  /**
+   * Delete a vector store.
+   */
+  del(vectorStoreId, options) {
+    return this._client.delete(`/vector_stores/${vectorStoreId}`, {
+      ...options,
+      headers: { "OpenAI-Beta": "assistants=v2", ...options == null ? void 0 : options.headers }
+    });
+  }
+};
+var VectorStoresPage = class extends CursorPage {
+};
+(function(VectorStores2) {
+  VectorStores2.VectorStoresPage = VectorStoresPage;
+  VectorStores2.Files = Files;
+  VectorStores2.VectorStoreFilesPage = VectorStoreFilesPage;
+  VectorStores2.FileBatches = FileBatches;
+})(VectorStores || (VectorStores = {}));
 
 // node_modules/openai/resources/beta/beta.mjs
 var Beta = class extends APIResource {
   constructor() {
     super(...arguments);
+    this.vectorStores = new VectorStores(this._client);
     this.chat = new Chat2(this._client);
     this.assistants = new Assistants(this._client);
     this.threads = new Threads(this._client);
   }
 };
 (function(Beta2) {
+  Beta2.VectorStores = VectorStores;
+  Beta2.VectorStoresPage = VectorStoresPage;
   Beta2.Chat = Chat2;
   Beta2.Assistants = Assistants;
   Beta2.AssistantsPage = AssistantsPage;
@@ -3320,16 +4049,26 @@ var Embeddings = class extends APIResource {
 })(Embeddings || (Embeddings = {}));
 
 // node_modules/openai/resources/files.mjs
-var Files3 = class extends APIResource {
+var Files2 = class extends APIResource {
   /**
-   * Upload a file that can be used across various endpoints. The size of all the
-   * files uploaded by one organization can be up to 100 GB.
+   * Upload a file that can be used across various endpoints. Individual files can be
+   * up to 512 MB, and the size of all files uploaded by one organization can be up
+   * to 100 GB.
    *
-   * The size of individual files can be a maximum of 512 MB or 2 million tokens for
-   * Assistants. See the
-   * [Assistants Tools guide](https://platform.openai.com/docs/assistants/tools) to
-   * learn more about the types of files supported. The Fine-tuning API only supports
-   * `.jsonl` files.
+   * The Assistants API supports files up to 2 million tokens and of specific file
+   * types. See the
+   * [Assistants Tools guide](https://platform.openai.com/docs/assistants/tools) for
+   * details.
+   *
+   * The Fine-tuning API only supports `.jsonl` files. The input also has certain
+   * required formats for fine-tuning
+   * [chat](https://platform.openai.com/docs/api-reference/fine-tuning/chat-input) or
+   * [completions](https://platform.openai.com/docs/api-reference/fine-tuning/completions-input)
+   * models.
+   *
+   * The Batch API only supports `.jsonl` files up to 100 MB in size. The input also
+   * has a specific required
+   * [format](https://platform.openai.com/docs/api-reference/batch/request-input).
    *
    * Please [contact us](https://help.openai.com/) if you need to increase these
    * storage limits.
@@ -3393,12 +4132,31 @@ var Files3 = class extends APIResource {
 };
 var FileObjectsPage = class extends Page {
 };
-(function(Files4) {
-  Files4.FileObjectsPage = FileObjectsPage;
-})(Files3 || (Files3 = {}));
+(function(Files3) {
+  Files3.FileObjectsPage = FileObjectsPage;
+})(Files2 || (Files2 = {}));
 
-// node_modules/openai/resources/fine-tuning/jobs.mjs
+// node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
+var Checkpoints = class extends APIResource {
+  list(fineTuningJobId, query = {}, options) {
+    if (isRequestOptions(query)) {
+      return this.list(fineTuningJobId, {}, query);
+    }
+    return this._client.getAPIList(`/fine_tuning/jobs/${fineTuningJobId}/checkpoints`, FineTuningJobCheckpointsPage, { query, ...options });
+  }
+};
+var FineTuningJobCheckpointsPage = class extends CursorPage {
+};
+(function(Checkpoints2) {
+  Checkpoints2.FineTuningJobCheckpointsPage = FineTuningJobCheckpointsPage;
+})(Checkpoints || (Checkpoints = {}));
+
+// node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
 var Jobs = class extends APIResource {
+  constructor() {
+    super(...arguments);
+    this.checkpoints = new Checkpoints(this._client);
+  }
   /**
    * Creates a fine-tuning job which begins the process of creating a new model from
    * a given dataset.
@@ -3448,6 +4206,8 @@ var FineTuningJobEventsPage = class extends CursorPage {
 (function(Jobs2) {
   Jobs2.FineTuningJobsPage = FineTuningJobsPage;
   Jobs2.FineTuningJobEventsPage = FineTuningJobEventsPage;
+  Jobs2.Checkpoints = Checkpoints;
+  Jobs2.FineTuningJobCheckpointsPage = FineTuningJobCheckpointsPage;
 })(Jobs || (Jobs = {}));
 
 // node_modules/openai/resources/fine-tuning/fine-tuning.mjs
@@ -3520,7 +4280,7 @@ var ModelsPage = class extends Page {
 // node_modules/openai/resources/moderations.mjs
 var Moderations = class extends APIResource {
   /**
-   * Classifies if text violates OpenAI's Content Policy
+   * Classifies if text is potentially harmful.
    */
   create(body, options) {
     return this._client.post("/moderations", { body, ...options });
@@ -3537,6 +4297,7 @@ var OpenAI = class extends APIClient {
    *
    * @param {string | undefined} [opts.apiKey=process.env['OPENAI_API_KEY'] ?? undefined]
    * @param {string | null | undefined} [opts.organization=process.env['OPENAI_ORG_ID'] ?? null]
+   * @param {string | null | undefined} [opts.project=process.env['OPENAI_PROJECT_ID'] ?? null]
    * @param {string} [opts.baseURL=process.env['OPENAI_BASE_URL'] ?? https://api.openai.com/v1] - Override the default base URL for the API.
    * @param {number} [opts.timeout=10 minutes] - The maximum amount of time (in milliseconds) the client will wait for a response before timing out.
    * @param {number} [opts.httpAgent] - An HTTP agent used to manage HTTP(s) connections.
@@ -3546,7 +4307,7 @@ var OpenAI = class extends APIClient {
    * @param {Core.DefaultQuery} opts.defaultQuery - Default query parameters to include with every request to the API.
    * @param {boolean} [opts.dangerouslyAllowBrowser=false] - By default, client-side use of this library is not allowed, as it risks exposing your secret API credentials to attackers.
    */
-  constructor({ baseURL = readEnv("OPENAI_BASE_URL"), apiKey = readEnv("OPENAI_API_KEY"), organization = ((_a2) => (_a2 = readEnv("OPENAI_ORG_ID")) != null ? _a2 : null)(), ...opts } = {}) {
+  constructor({ baseURL = readEnv("OPENAI_BASE_URL"), apiKey = readEnv("OPENAI_API_KEY"), organization = ((_a2) => (_a2 = readEnv("OPENAI_ORG_ID")) != null ? _a2 : null)(), project = ((_b) => (_b = readEnv("OPENAI_PROJECT_ID")) != null ? _b : null)(), ...opts } = {}) {
     var _a3;
     if (apiKey === void 0) {
       throw new OpenAIError("The OPENAI_API_KEY environment variable is missing or empty; either provide it, or instantiate the OpenAI client with an apiKey option, like new OpenAI({ apiKey: 'My API Key' }).");
@@ -3554,6 +4315,7 @@ var OpenAI = class extends APIClient {
     const options = {
       apiKey,
       organization,
+      project,
       ...opts,
       baseURL: baseURL || `https://api.openai.com/v1`
     };
@@ -3570,16 +4332,18 @@ var OpenAI = class extends APIClient {
     this.completions = new Completions3(this);
     this.chat = new Chat(this);
     this.embeddings = new Embeddings(this);
-    this.files = new Files3(this);
+    this.files = new Files2(this);
     this.images = new Images(this);
     this.audio = new Audio2(this);
     this.moderations = new Moderations(this);
     this.models = new Models(this);
     this.fineTuning = new FineTuning(this);
     this.beta = new Beta(this);
+    this.batches = new Batches(this);
     this._options = options;
     this.apiKey = apiKey;
     this.organization = organization;
+    this.project = project;
   }
   defaultQuery() {
     return this._options.defaultQuery;
@@ -3588,6 +4352,7 @@ var OpenAI = class extends APIClient {
     return {
       ...super.defaultHeaders(opts),
       "OpenAI-Organization": this.organization,
+      "OpenAI-Project": this.project,
       ...this._options.defaultHeaders
     };
   }
@@ -3610,16 +4375,16 @@ OpenAI.AuthenticationError = AuthenticationError;
 OpenAI.InternalServerError = InternalServerError;
 OpenAI.PermissionDeniedError = PermissionDeniedError;
 OpenAI.UnprocessableEntityError = UnprocessableEntityError;
+OpenAI.toFile = toFile;
+OpenAI.fileFromPath = fileFromPath;
 var { OpenAIError: OpenAIError2, APIError: APIError2, APIConnectionError: APIConnectionError2, APIConnectionTimeoutError: APIConnectionTimeoutError2, APIUserAbortError: APIUserAbortError2, NotFoundError: NotFoundError2, ConflictError: ConflictError2, RateLimitError: RateLimitError2, BadRequestError: BadRequestError2, AuthenticationError: AuthenticationError2, InternalServerError: InternalServerError2, PermissionDeniedError: PermissionDeniedError2, UnprocessableEntityError: UnprocessableEntityError2 } = error_exports;
 (function(OpenAI2) {
-  OpenAI2.toFile = toFile;
-  OpenAI2.fileFromPath = fileFromPath;
   OpenAI2.Page = Page;
   OpenAI2.CursorPage = CursorPage;
   OpenAI2.Completions = Completions3;
   OpenAI2.Chat = Chat;
   OpenAI2.Embeddings = Embeddings;
-  OpenAI2.Files = Files3;
+  OpenAI2.Files = Files2;
   OpenAI2.FileObjectsPage = FileObjectsPage;
   OpenAI2.Images = Images;
   OpenAI2.Audio = Audio2;
@@ -3628,24 +4393,27 @@ var { OpenAIError: OpenAIError2, APIError: APIError2, APIConnectionError: APICon
   OpenAI2.ModelsPage = ModelsPage;
   OpenAI2.FineTuning = FineTuning;
   OpenAI2.Beta = Beta;
+  OpenAI2.Batches = Batches;
+  OpenAI2.BatchesPage = BatchesPage;
 })(OpenAI || (OpenAI = {}));
 
 // src/openai_api.ts
+var import_obsidian2 = require("obsidian");
 var OpenAIAssistant = class {
   constructor(apiKey, modelName, maxTokens) {
     this.display_error = (err) => {
       if (err instanceof OpenAI.APIError) {
-        new import_obsidian2.Notice("## OpenAI API ## " + err);
+        new import_obsidian.Notice(`## OpenAI API Error: ${err}.`);
       } else {
-        new import_obsidian2.Notice(err);
+        new import_obsidian.Notice(err);
       }
     };
-    this.api_call = async (prompt_list, htmlEl, view) => {
+    this.text_api_call = async (prompt_list, htmlEl, view) => {
       const streamMode = htmlEl !== void 0;
       const has_img = prompt_list.some((el) => Array.isArray(el.content));
       let model = this.modelName;
-      if (has_img) {
-        model = "gpt-4-vision-preview";
+      if (has_img && !["gpt-4o", "gpt-4-turbo"].includes(model)) {
+        model = "gpt-4o";
       }
       try {
         const response = await this.apiFun.chat.completions.create({
@@ -3662,7 +4430,7 @@ var OpenAIAssistant = class {
               responseText = responseText.concat(content);
               htmlEl.innerHTML = "";
               if (view) {
-                await import_obsidian2.MarkdownRenderer.renderMarkdown(
+                await import_obsidian.MarkdownRenderer.renderMarkdown(
                   responseText,
                   htmlEl,
                   "",
@@ -3735,25 +4503,605 @@ var OpenAIAssistant = class {
     this.apiKey = apiKey;
   }
 };
+var AnthropicAssistant = class extends OpenAIAssistant {
+  constructor(openAIapiKey, anthropicApiKey, modelName, maxTokens) {
+    super(openAIapiKey, modelName, maxTokens);
+    this.text_api_call = async (prompt_list, htmlEl, view) => {
+      try {
+        const response = await (0, import_obsidian2.request)({
+          url: "https://api.anthropic.com/v1/messages",
+          method: "POST",
+          headers: {
+            "x-api-key": this.anthropicApiKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            model: this.modelName,
+            max_tokens: this.maxTokens,
+            messages: prompt_list,
+            // Stream mode not implemented yet.
+            stream: false
+          })
+        });
+        return JSON.parse(response).content[0].text;
+      } catch (err) {
+        this.display_error(err);
+      }
+    };
+    this.anthropicApiKey = anthropicApiKey;
+  }
+};
+
+// src/modal.ts
+var PromptModal = class extends import_obsidian3.Modal {
+  constructor(app2, onSubmit, is_img_modal, settings) {
+    super(app2);
+    this.onSubmit = onSubmit;
+    this.settings = settings;
+    this.is_img_modal = is_img_modal;
+    this.param_dict = {
+      num_img: "1",
+      is_hd: "true"
+    };
+  }
+  build_image_modal() {
+    this.titleEl.setText("What can I generate for you?");
+    const prompt_container = this.contentEl.createEl("div", {
+      cls: "prompt-modal-container"
+    });
+    this.contentEl.append(prompt_container);
+    const prompt_left_container = prompt_container.createEl("div", {
+      cls: "prompt-left-container"
+    });
+    const desc1 = prompt_left_container.createEl("p", {
+      cls: "description"
+    });
+    desc1.innerText = "Resolution";
+    const prompt_right_container = prompt_container.createEl("div", {
+      cls: "prompt-right-container"
+    });
+    const resolution_dropdown = prompt_right_container.createEl("select");
+    let options = ["256x256", "512x512", "1024x1024"];
+    this.param_dict["img_size"] = "256x256";
+    if (this.settings["model"] === "dall-e-3") {
+      options = ["1024x1024", "1792x1024", "1024x1792"];
+      this.param_dict["img_size"] = "1024x1024";
+    }
+    options.forEach((option) => {
+      const optionEl = resolution_dropdown.createEl("option", {
+        text: option
+      });
+      optionEl.value = option;
+      if (option === this.param_dict["img_size"]) {
+        optionEl.selected = true;
+      }
+    });
+    resolution_dropdown.addEventListener("change", (event) => {
+      const selectElement = event.target;
+      this.param_dict["img_size"] = selectElement.value;
+    });
+    if (this.settings["model"] === "dall-e-2") {
+      const desc2 = prompt_left_container.createEl("p", {
+        cls: "description"
+      });
+      desc2.innerText = "Num images";
+      const num_img_dropdown = prompt_right_container.createEl("select");
+      const num_choices = [...Array(10).keys()].map(
+        (x) => (x + 1).toString()
+      );
+      num_choices.forEach((option) => {
+        const optionEl = num_img_dropdown.createEl("option", {
+          text: option
+        });
+        optionEl.value = option;
+        if (option === this.param_dict["num_img"]) {
+          optionEl.selected = true;
+        }
+      });
+      num_img_dropdown.addEventListener("change", (event) => {
+        const selectElement = event.target;
+        this.param_dict["num_img"] = selectElement.value;
+      });
+    }
+    if (this.settings["model"] === "dall-e-3") {
+      const desc2 = prompt_left_container.createEl("p", {
+        cls: "description"
+      });
+      desc2.innerText = "HD?";
+      const is_hd = prompt_right_container.createEl("input", {
+        type: "checkbox"
+      });
+      is_hd.checked = this.param_dict["is_hd"] === "true";
+      is_hd.addEventListener("change", (event) => {
+        this.param_dict["is_hd"] = is_hd.checked.toString();
+      });
+    }
+  }
+  submit_action() {
+    if (this.param_dict["prompt_text"]) {
+      this.close();
+      this.onSubmit(this.param_dict);
+    }
+  }
+  onOpen() {
+    const { contentEl } = this;
+    this.titleEl.setText("What can I do for you?");
+    const input_container = contentEl.createEl("div", {
+      cls: "chat-button-container-right"
+    });
+    const input_field = input_container.createEl("input", {
+      placeholder: "Your prompt here",
+      type: "text"
+    });
+    input_field.addEventListener("keypress", (evt) => {
+      if (evt.key === "Enter") {
+        this.param_dict["prompt_text"] = input_field.value.trim();
+        this.submit_action();
+      }
+    });
+    const submit_btn = input_container.createEl("button", {
+      text: "Submit",
+      cls: "mod-cta"
+    });
+    submit_btn.addEventListener("click", () => {
+      this.param_dict["prompt_text"] = input_field.value.trim();
+      this.submit_action();
+    });
+    input_field.focus();
+    input_field.select();
+    if (this.is_img_modal) {
+      this.build_image_modal();
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var ChatModal = class extends import_obsidian3.Modal {
+  constructor(app2, assistant) {
+    super(app2);
+    this.prompt_table = [];
+    this.is_anthropic_img = (el) => {
+      return Array.isArray(el["content"]) && el["content"][el["content"].length - 1]["type"] === "image" && "source" in el["content"][el["content"].length - 1];
+    };
+    this.send_action = async () => {
+      if (this.prompt_text && !this.is_generating_answer) {
+        this.is_generating_answer = true;
+        let merge_text_img = false;
+        if (this.prompt_table.length > 0) {
+          const lastElement = this.prompt_table[this.prompt_table.length - 1];
+          if (this.is_anthropic_img(lastElement)) {
+            lastElement["content"].push({
+              type: "text",
+              text: this.prompt_text
+            });
+            merge_text_img = true;
+          }
+        }
+        if (!merge_text_img) {
+          this.prompt_table.push({
+            role: "user",
+            content: this.prompt_text
+          });
+        }
+        this.prompt_table.push({
+          role: "assistant",
+          content: "Generating Answer..."
+        });
+        this.clearModalContent();
+        await this.displayModalContent();
+        this.prompt_table.pop();
+        const answers = this.modalEl.getElementsByClassName("chat-div assistant");
+        const view = this.app.workspace.getActiveViewOfType(
+          import_obsidian3.MarkdownView
+        );
+        const answer = await this.aiAssistant.text_api_call(
+          this.prompt_table,
+          answers[answers.length - 1],
+          view
+        );
+        if (answer) {
+          this.prompt_table.push({
+            role: "assistant",
+            content: answer
+          });
+        }
+        this.clearModalContent();
+        await this.displayModalContent();
+        this.is_generating_answer = false;
+      }
+    };
+    this.displayModalContent = async () => {
+      const { contentEl } = this;
+      const container = this.contentEl.createEl("div", {
+        cls: "chat-modal-container"
+      });
+      const view = this.app.workspace.getActiveViewOfType(
+        import_obsidian3.MarkdownView
+      );
+      for (const x of this.prompt_table) {
+        const div = container.createEl("div", {
+          cls: `chat-div ${x["role"]}`
+        });
+        if (x["role"] === "assistant") {
+          await import_obsidian3.MarkdownRenderer.renderMarkdown(
+            x["content"],
+            div,
+            "",
+            view
+          );
+        } else {
+          if (Array.isArray(x["content"])) {
+            x["content"].forEach((content) => {
+              if (content["type"] === "text") {
+                div.createEl("p", {
+                  text: content["text"]
+                });
+              } else {
+                const image = div.createEl("img", {
+                  cls: "image-modal-image"
+                });
+                if ("source" in content) {
+                  image.setAttribute(
+                    "src",
+                    `data:${content["source"]["media_type"]};base64,${content["source"]["data"]}`
+                  );
+                } else {
+                  image.setAttribute(
+                    "src",
+                    content["image_url"]["url"]
+                  );
+                }
+              }
+            });
+          } else {
+            div.createEl("p", {
+              text: x["content"]
+            });
+          }
+        }
+        div.addEventListener("click", async () => {
+          await navigator.clipboard.writeText(x["content"]);
+          new import_obsidian3.Notice(x["content"] + " Copied to clipboard!");
+        });
+      }
+      const button_container = contentEl.createEl("div", {
+        cls: "chat-button-container"
+      });
+      button_container.createEl("p", {
+        text: "Type here:"
+      });
+      const right_button_container = button_container.createEl("div", {
+        cls: "chat-button-container-right"
+      });
+      const hidden_add_file_button = right_button_container.createEl(
+        "input",
+        {
+          type: "file",
+          cls: "hidden-file"
+        }
+      );
+      hidden_add_file_button.setAttribute("accept", ".png, .jpg, .jpeg");
+      hidden_add_file_button.addEventListener("change", async (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+          const base64String = await convertBlobToBase64(files[0]);
+          let content;
+          if (this.aiAssistant instanceof AnthropicAssistant) {
+            const [type, data] = decode_base64(base64String);
+            content = {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: type,
+                data
+              }
+            };
+          } else {
+            content = {
+              type: "image_url",
+              image_url: {
+                url: base64String,
+                detail: "auto"
+              }
+            };
+          }
+          this.prompt_table.push({
+            role: "user",
+            content: [content]
+          });
+          this.clearModalContent();
+          this.displayModalContent();
+        }
+      });
+      const add_file_button = right_button_container.createEl("button");
+      add_file_button.innerHTML = "&#x1F4F7;";
+      add_file_button.addEventListener("click", () => {
+        hidden_add_file_button.click();
+      });
+      const input_field = right_button_container.createEl("input", {
+        placeholder: "Your prompt here",
+        type: "text"
+      });
+      input_field.addEventListener("keypress", (evt) => {
+        if (evt.key === "Enter") {
+          this.prompt_text = input_field.value.trim();
+          this.send_action();
+        }
+      });
+      const submit_btn = right_button_container.createEl("button", {
+        text: "Submit",
+        cls: "mod-cta"
+      });
+      submit_btn.addEventListener("click", () => {
+        this.prompt_text = input_field.value.trim();
+        this.send_action();
+      });
+      input_field.focus();
+      input_field.select();
+      const button_container_2 = contentEl.createEl("div", {
+        cls: "chat-button-container-right upper-border"
+      });
+      const clear_button = button_container_2.createEl("button", {
+        text: "Clear"
+      });
+      const copy_button = button_container_2.createEl("button", {
+        text: "Copy conversation"
+      });
+      clear_button.addEventListener("click", () => {
+        this.prompt_table = [];
+        this.clearModalContent();
+        this.displayModalContent();
+      });
+      copy_button.addEventListener("click", async () => {
+        const conversation = this.prompt_table.map((x) => x["content"]).join("\n\n");
+        await navigator.clipboard.writeText(conversation);
+        new import_obsidian3.Notice("Conversation copied to clipboard");
+      });
+      const convertBlobToBase64 = (blob) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(reader.error);
+          reader.onload = () => {
+            resolve(reader.result);
+          };
+          reader.readAsDataURL(blob);
+        });
+      };
+      const decode_base64 = (input) => {
+        const commaIndex = input.indexOf(",");
+        const semiIndex = input.indexOf(";");
+        const dotIndex = input.indexOf(":");
+        const type = input.slice(dotIndex + 1, semiIndex);
+        const data = input.slice(commaIndex + 1);
+        return [type, data];
+      };
+    };
+    this.aiAssistant = assistant;
+    this.is_generating_answer = false;
+  }
+  clearModalContent() {
+    this.contentEl.innerHTML = "";
+    this.prompt_text = "";
+  }
+  onOpen() {
+    this.titleEl.setText("What can I do for you?");
+    this.displayModalContent();
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var ImageModal = class extends import_obsidian3.Modal {
+  constructor(app2, imageUrls, title, assetFolder) {
+    super(app2);
+    this.downloadImage = async (url, path) => {
+      const response = await (0, import_obsidian3.requestUrl)({ url });
+      await this.app.vault.adapter.writeBinary(path, response.arrayBuffer);
+    };
+    this.getImageName = (url) => {
+      return url.split("/").pop() + ".png";
+    };
+    this.saveImagesToVault = async (imageUrls, folderPath) => {
+      for (const url of imageUrls) {
+        const imageName = this.getImageName(url);
+        const savePath = folderPath + "/" + imageName;
+        await this.downloadImage(url, savePath);
+      }
+    };
+    this.imageUrls = imageUrls;
+    this.selectedImageUrls = [];
+    this.titleEl.setText(title);
+    this.assetFolder = assetFolder;
+  }
+  onOpen() {
+    const container = this.contentEl.createEl("div", {
+      cls: "image-modal-container"
+    });
+    for (const imageUrl of this.imageUrls) {
+      const imgWrapper = container.createEl("div", {
+        cls: "image-modal-wrapper"
+      });
+      const img = imgWrapper.createEl("img", {
+        cls: "image-modal-image"
+      });
+      img.src = imageUrl;
+      img.addEventListener("click", async () => {
+        if (this.selectedImageUrls.includes(imageUrl)) {
+          this.selectedImageUrls = this.selectedImageUrls.filter(
+            (url) => url !== imageUrl
+          );
+          img.style.border = "none";
+        } else {
+          this.selectedImageUrls.push(imageUrl);
+          img.style.border = "2px solid blue";
+        }
+        new import_obsidian3.Notice("Images copied to clipboard");
+      });
+    }
+  }
+  async onClose() {
+    if (this.selectedImageUrls.length > 0) {
+      if (!app.vault.getAbstractFileByPath(this.assetFolder)) {
+        try {
+          await app.vault.createFolder(this.assetFolder);
+        } catch (error) {
+          console.error("Error creating directory:", error);
+        }
+      }
+      try {
+        await this.saveImagesToVault(
+          this.selectedImageUrls,
+          this.assetFolder
+        );
+      } catch (e) {
+        new import_obsidian3.Notice("Error while downloading images");
+      }
+      try {
+        await navigator.clipboard.writeText(
+          this.selectedImageUrls.map((x) => `![](${this.getImageName(x)})`).join("\n\n") + "\n"
+        );
+      } catch (e) {
+        new import_obsidian3.Notice("Error while copying images to clipboard");
+      }
+    }
+    this.contentEl.empty();
+  }
+};
+var SpeechModal = class extends import_obsidian3.Modal {
+  constructor(app2, assistant, language, editor) {
+    super(app2);
+    this.stopRecording = () => {
+      this.recorder.stop();
+      if (this.gumStream) {
+        this.gumStream.getAudioTracks()[0].stop();
+      }
+    };
+    this.start_recording = async (constraints, mimeType) => {
+      try {
+        let chunks = [];
+        this.gumStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const options = {
+          audioBitsPerSecond: 256e3,
+          mimeType
+        };
+        this.recorder = new MediaRecorder(this.gumStream, options);
+        this.recorder.ondataavailable = async (e) => {
+          chunks.push(e.data);
+          if (this.recorder.state == "inactive" && !this.is_cancelled) {
+            const audio = new File(
+              chunks,
+              "tmp." + mimeType.split("/").at(-1),
+              {
+                type: mimeType
+              }
+            );
+            const answer = await this.assistant.whisper_api_call(
+              audio,
+              this.language
+            );
+            if (answer) {
+              this.editor.replaceRange(
+                answer,
+                this.editor.getCursor()
+              );
+              const newPos = {
+                line: this.editor.getCursor().line,
+                ch: this.editor.getCursor().ch + answer.length
+              };
+              this.editor.setCursor(newPos.line, newPos.ch);
+            }
+            this.close();
+          }
+        };
+        this.recorder.start(1e3);
+        chunks = [];
+      } catch (err) {
+        new import_obsidian3.Notice(err);
+      }
+    };
+    this.assistant = assistant;
+    this.language = language;
+    this.editor = editor;
+    this.is_cancelled = false;
+  }
+  async onOpen() {
+    const { contentEl } = this;
+    this.titleEl.setText("Speech to Text");
+    let mimeType;
+    if (MediaRecorder.isTypeSupported("audio/webm")) {
+      mimeType = "audio/webm";
+    } else {
+      mimeType = "video/mp4";
+    }
+    const constraints = { audio: true };
+    const button_container = contentEl.createEl("div", {
+      cls: "speech-modal-container"
+    });
+    const record_button = button_container.createEl("button", {
+      text: "Start Recording",
+      cls: "record-button"
+    });
+    record_button.addEventListener("click", () => {
+      if (this.recorder && this.recorder.state === "recording") {
+        new import_obsidian3.Notice("Stop recording");
+        record_button.disabled = true;
+        this.titleEl.setText("Processing record");
+        this.stopRecording();
+      } else {
+        new import_obsidian3.Notice("Start recording");
+        record_button.setText("Stop Recording");
+        record_button.style.borderColor = "red";
+        this.titleEl.setText("Listening...");
+        this.start_recording(constraints, mimeType);
+      }
+    });
+    const cancel_button = button_container.createEl("button", {
+      text: "Cancel"
+    });
+    cancel_button.addEventListener("click", (e) => {
+      this.is_cancelled = true;
+      this.close();
+    });
+  }
+  async onClose() {
+    if (this.recorder && this.recorder.state === "recording") {
+      new import_obsidian3.Notice("Stop recording");
+      this.stopRecording();
+    }
+    this.contentEl.empty();
+  }
+};
 
 // src/main.ts
 var DEFAULT_SETTINGS = {
   mySetting: "default",
-  apiKey: "",
-  modelName: "gpt-3.5-turbo",
+  openAIapiKey: "",
+  anthropicApiKey: "",
+  modelName: "gpt-4o",
   imageModelName: "dall-e-3",
   maxTokens: 500,
   replaceSelection: true,
   imgFolder: "AiAssistant/Assets",
   language: ""
 };
-var AiAssistantPlugin = class extends import_obsidian3.Plugin {
+var AiAssistantPlugin = class extends import_obsidian4.Plugin {
   build_api() {
-    this.openai = new OpenAIAssistant(
-      this.settings.apiKey,
-      this.settings.modelName,
-      this.settings.maxTokens
-    );
+    if (this.settings.modelName.includes("claude")) {
+      this.aiAssistant = new AnthropicAssistant(
+        this.settings.openAIapiKey,
+        this.settings.anthropicApiKey,
+        this.settings.modelName,
+        this.settings.maxTokens
+      );
+    } else {
+      this.aiAssistant = new OpenAIAssistant(
+        this.settings.openAIapiKey,
+        this.settings.modelName,
+        this.settings.maxTokens
+      );
+    }
   }
   async onload() {
     await this.loadSettings();
@@ -3762,7 +5110,7 @@ var AiAssistantPlugin = class extends import_obsidian3.Plugin {
       id: "chat-mode",
       name: "Open Assistant Chat",
       callback: () => {
-        new ChatModal(this.app, this.openai).open();
+        new ChatModal(this.app, this.aiAssistant).open();
       }
     });
     this.addCommand({
@@ -3773,7 +5121,7 @@ var AiAssistantPlugin = class extends import_obsidian3.Plugin {
         new PromptModal(
           this.app,
           async (x) => {
-            let answer = await this.openai.api_call([
+            let answer = await this.aiAssistant.text_api_call([
               {
                 role: "user",
                 content: x["prompt_text"] + " : " + selected_text
@@ -3799,7 +5147,7 @@ var AiAssistantPlugin = class extends import_obsidian3.Plugin {
         new PromptModal(
           this.app,
           async (prompt) => {
-            const answer = await this.openai.img_api_call(
+            const answer = await this.aiAssistant.img_api_call(
               this.settings.imageModelName,
               prompt["prompt_text"],
               prompt["img_size"],
@@ -3827,7 +5175,7 @@ var AiAssistantPlugin = class extends import_obsidian3.Plugin {
       editorCallback: (editor) => {
         new SpeechModal(
           this.app,
-          this.openai,
+          this.aiAssistant,
           this.settings.language,
           editor
         ).open();
@@ -3848,7 +5196,7 @@ var AiAssistantPlugin = class extends import_obsidian3.Plugin {
     await this.saveData(this.settings);
   }
 };
-var AiAssistantSettingTab = class extends import_obsidian3.PluginSettingTab {
+var AiAssistantSettingTab = class extends import_obsidian4.PluginSettingTab {
   constructor(app2, plugin) {
     super(app2, plugin);
     this.plugin = plugin;
@@ -3857,30 +5205,41 @@ var AiAssistantSettingTab = class extends import_obsidian3.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Settings for my AI assistant." });
-    new import_obsidian3.Setting(containerEl).setName("API Key").setDesc("OpenAI API Key").addText(
-      (text) => text.setPlaceholder("Enter your key here").setValue(this.plugin.settings.apiKey).onChange(async (value) => {
-        this.plugin.settings.apiKey = value;
+    new import_obsidian4.Setting(containerEl).setName("OpenAI API Key").addText(
+      (text) => text.setPlaceholder("Enter OpenAI key here").setValue(this.plugin.settings.openAIapiKey).onChange(async (value) => {
+        this.plugin.settings.openAIapiKey = value;
+        await this.plugin.saveSettings();
+        this.plugin.build_api();
+      })
+    );
+    new import_obsidian4.Setting(containerEl).setName("Anthropic API Key").addText(
+      (text) => text.setPlaceholder("Enter Anthropic key here").setValue(this.plugin.settings.anthropicApiKey).onChange(async (value) => {
+        this.plugin.settings.anthropicApiKey = value;
         await this.plugin.saveSettings();
         this.plugin.build_api();
       })
     );
     containerEl.createEl("h3", { text: "Text Assistant" });
-    new import_obsidian3.Setting(containerEl).setName("Model Name").setDesc("Select your model").addDropdown(
+    new import_obsidian4.Setting(containerEl).setName("Model Name").setDesc("Select your model").addDropdown(
       (dropdown) => dropdown.addOptions({
+        "gpt-4o": "gpt-4o",
+        "gpt-4": "gpt-4",
+        "gpt-4-turbo": "gpt-4-turbo",
         "gpt-3.5-turbo": "gpt-3.5-turbo",
-        "gpt-4-turbo-preview": "gpt-4-turbo",
-        "gpt-4": "gpt-4"
+        "claude-3-opus-20240229": "Claude 3 Opus",
+        "claude-3-5-sonnet-20240620": "Claude 3.5 Sonnet",
+        "claude-3-haiku-20240307": "Claude 3 Haiku"
       }).setValue(this.plugin.settings.modelName).onChange(async (value) => {
         this.plugin.settings.modelName = value;
         await this.plugin.saveSettings();
         this.plugin.build_api();
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Max Tokens").setDesc("Select max number of generated tokens").addText(
+    new import_obsidian4.Setting(containerEl).setName("Max Tokens").setDesc("Select max number of generated tokens").addText(
       (text) => text.setPlaceholder("Max tokens").setValue(this.plugin.settings.maxTokens.toString()).onChange(async (value) => {
         const int_value = parseInt(value);
         if (!int_value || int_value <= 0) {
-          new import_obsidian3.Notice("Error while parsing maxTokens ");
+          new import_obsidian4.Notice("Error while parsing maxTokens ");
         } else {
           this.plugin.settings.maxTokens = int_value;
           await this.plugin.saveSettings();
@@ -3888,7 +5247,7 @@ var AiAssistantSettingTab = class extends import_obsidian3.PluginSettingTab {
         }
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Prompt behavior").setDesc("Replace selection").addToggle((toogle) => {
+    new import_obsidian4.Setting(containerEl).setName("Prompt behavior").setDesc("Replace selection").addToggle((toogle) => {
       toogle.setValue(this.plugin.settings.replaceSelection).onChange(async (value) => {
         this.plugin.settings.replaceSelection = value;
         await this.plugin.saveSettings();
@@ -3896,18 +5255,18 @@ var AiAssistantSettingTab = class extends import_obsidian3.PluginSettingTab {
       });
     });
     containerEl.createEl("h3", { text: "Image Assistant" });
-    new import_obsidian3.Setting(containerEl).setName("Default location for generated images").setDesc("Where generated images are stored.").addText(
+    new import_obsidian4.Setting(containerEl).setName("Default location for generated images").setDesc("Where generated images are stored.").addText(
       (text) => text.setPlaceholder("Enter the path to you image folder").setValue(this.plugin.settings.imgFolder).onChange(async (value) => {
         const path = value.replace(/\/+$/, "");
         if (path) {
           this.plugin.settings.imgFolder = path;
           await this.plugin.saveSettings();
         } else {
-          new import_obsidian3.Notice("Image folder cannot be empty");
+          new import_obsidian4.Notice("Image folder cannot be empty");
         }
       })
     );
-    new import_obsidian3.Setting(containerEl).setName("Image Model Name").setDesc("Select your model").addDropdown(
+    new import_obsidian4.Setting(containerEl).setName("Image Model Name").setDesc("Select your model").addDropdown(
       (dropdown) => dropdown.addOptions({
         "dall-e-3": "dall-e-3",
         "dall-e-2": "dall-e-2"
@@ -3918,7 +5277,7 @@ var AiAssistantSettingTab = class extends import_obsidian3.PluginSettingTab {
       })
     );
     containerEl.createEl("h3", { text: "Speech to Text" });
-    new import_obsidian3.Setting(containerEl).setName("The language of the input audio").setDesc("Using ISO-639-1 format (en, fr, de, ...)").addText(
+    new import_obsidian4.Setting(containerEl).setName("The language of the input audio").setDesc("Using ISO-639-1 format (en, fr, de, ...)").addText(
       (text) => text.setValue(this.plugin.settings.language).onChange(async (value) => {
         this.plugin.settings.language = value;
         await this.plugin.saveSettings();
