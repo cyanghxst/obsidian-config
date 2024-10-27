@@ -10,4 +10,4 @@ set clipboard=unnamed
 
 " Jump to link in Lightspeed mode plugin
 exmap jumpToLink obcommand mrj-jump-to-link:activate-lightspeed-jump
-nmap s :jumpToLink
+nmap s :jumpToLink<CR>
