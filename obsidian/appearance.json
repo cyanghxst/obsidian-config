@@ -13,5 +13,7 @@
     "image_align"
   ],
   "nativeMenus": true,
-  "theme": "obsidian"
+  "theme": "obsidian",
+  "textFontFamily": "Inter",
+  "monospaceFontFamily": "JetBrainsMono Nerd Font"
 }
