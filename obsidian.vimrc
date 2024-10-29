@@ -3,7 +3,7 @@
 " nmap k gk
 
 " Clear highlight search
-nmap <CR> :nohl
+nmap <CR> :nohl<CR>
 
 " Yank to system clipboard
 set clipboard=unnamed
